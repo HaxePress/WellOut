@@ -427,6 +427,8 @@ One small module provides fragment swapping, action submission, island loading a
 - `data-well-open="id"` opens the `<dialog>` with that id as a modal; `data-well-close` closes the dialog it is in; a dialog with `data-well-dismiss` closes when its backdrop is clicked.
 - `data-well-reveal="id"` toggles a password input between hidden and shown text, updating `aria-pressed`, the label from `data-well-show-label` and `data-well-hide-label`, and children marked `data-well-pressed="true|false"`.
 - `data-well-busy="label"` on a submit button shows that label and disables the button while the form submits.
+- `data-well-toggle="id"` shows or hides the element with that id (its `hidden` attribute), updating `aria-expanded` and the label from `data-well-show-label` and `data-well-hide-label`.
+- `data-well-hotkey="k"` clicks the element when Ctrl or Cmd and that key are pressed.
 - Any static `data-well-*` attribute makes the page load the runtime.
 - Post forms receive a hidden `_token` field; `put`, `patch` and `delete` forms also receive `_method`.
 - The reference implementation is `client/wellout.js` (2.1 KB gzip).

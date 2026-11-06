@@ -173,6 +173,18 @@ document.addEventListener("click", async (event) => {
     event.target.close();
     return;
   }
+  const toggle = event.target.closest("[data-well-toggle]");
+  if (toggle) {
+    const target = document.getElementById(toggle.getAttribute("data-well-toggle"));
+    if (target) {
+      const opening = target.hidden;
+      target.hidden = !opening;
+      toggle.setAttribute("aria-expanded", String(opening));
+      const label = toggle.getAttribute(opening ? "data-well-hide-label" : "data-well-show-label");
+      if (label) toggle.setAttribute("aria-label", label);
+    }
+    return;
+  }
   const reveal = event.target.closest("[data-well-reveal]");
   if (reveal) {
     const input = document.getElementById(reveal.getAttribute("data-well-reveal"));
@@ -257,6 +269,16 @@ document.addEventListener("submit", async (event) => {
   } else {
     swap(name, action.href, { method: "POST", body: data }, false);
   }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (!(event.metaKey || event.ctrlKey) || event.altKey || event.key.length !== 1) return;
+  const control = document.querySelector(
+    `[data-well-hotkey="${CSS.escape(event.key.toLowerCase())}"]`,
+  );
+  if (!control) return;
+  event.preventDefault();
+  control.click();
 });
 
 document.addEventListener("change", (event) => {
