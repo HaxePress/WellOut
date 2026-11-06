@@ -124,41 +124,121 @@ export async function swap(name, url, init = {}, push = false) {
   }
 }
 
-function confirmed(element) {
-  const message = element.closest("[data-well-confirm]")?.getAttribute("data-well-confirm");
-  return !message || window.confirm(message);
+function confirmationFor(element) {
+  return element?.closest("[data-well-confirm]")?.getAttribute("data-well-confirm") || "";
 }
 
-document.addEventListener("click", (event) => {
+/**
+ * Asks with the page's <dialog id="well-confirm">, so the prompt keeps the
+ * site's design, or with window.confirm when the page has none.
+ */
+function ask(message) {
+  const dialog = document.getElementById("well-confirm");
+  if (!(dialog instanceof HTMLDialogElement)) return Promise.resolve(window.confirm(message));
+  const text = dialog.querySelector("[data-well-confirm-message]");
+  if (text) text.textContent = message;
+  dialog.returnValue = "";
+  dialog.showModal();
+  return new Promise((resolve) => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue === "confirm"), {
+      once: true,
+    });
+  });
+}
+
+document.addEventListener("click", async (event) => {
   if (event.defaultPrevented || event.button !== 0) return;
+  const answer = event.target.closest("[data-well-answer]");
+  if (answer) {
+    answer.closest("dialog")?.close(answer.getAttribute("data-well-answer"));
+    return;
+  }
+  const opener = event.target.closest("[data-well-open]");
+  if (opener) {
+    const dialog = document.getElementById(opener.getAttribute("data-well-open"));
+    if (dialog instanceof HTMLDialogElement) {
+      dialog.showModal();
+      opener.setAttribute("aria-expanded", "true");
+      dialog.addEventListener("close", () => opener.setAttribute("aria-expanded", "false"), {
+        once: true,
+      });
+    }
+    return;
+  }
+  if (event.target.closest("[data-well-close]")) {
+    event.target.closest("dialog")?.close();
+    return;
+  }
+  if (event.target instanceof HTMLDialogElement && event.target.hasAttribute("data-well-dismiss")) {
+    event.target.close();
+    return;
+  }
+  const reveal = event.target.closest("[data-well-reveal]");
+  if (reveal) {
+    const input = document.getElementById(reveal.getAttribute("data-well-reveal"));
+    if (input instanceof HTMLInputElement) {
+      const visible = input.type === "password";
+      input.type = visible ? "text" : "password";
+      reveal.setAttribute("aria-pressed", String(visible));
+      const label = reveal.getAttribute(visible ? "data-well-hide-label" : "data-well-show-label");
+      if (label) reveal.setAttribute("aria-label", label);
+      for (const state of reveal.querySelectorAll("[data-well-pressed]")) {
+        state.hidden = state.getAttribute("data-well-pressed") !== String(visible);
+      }
+    }
+    return;
+  }
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-  const control = event.target.closest("button[data-well-confirm], a[data-well-confirm]");
-  if (control && !control.closest("form") && !confirmed(control)) {
+  const control = event.target.closest("a[data-well-confirm], button[data-well-confirm]");
+  if (control && !control.closest("form") && control.dataset.wellConfirmed !== "1") {
     event.preventDefault();
+    if (await ask(confirmationFor(control))) {
+      control.dataset.wellConfirmed = "1";
+      control.click();
+      delete control.dataset.wellConfirmed;
+    }
     return;
   }
   const link = event.target.closest("a[data-well-swap]");
   if (!link || link.target || link.hasAttribute("download")) return;
   const url = new URL(link.href, window.location.href);
   if (url.origin !== window.location.origin) return;
-  if (!confirmed(link)) {
-    event.preventDefault();
-    return;
-  }
   event.preventDefault();
   swap(link.dataset.wellSwap, url.href, {}, true);
 });
 
-document.addEventListener("submit", (event) => {
+function busy(form, submitter) {
+  const button = submitter || form.querySelector("[data-well-busy]");
+  const label = button?.getAttribute("data-well-busy");
+  if (!button || !label) return;
+  button.setAttribute("data-well-label", button.textContent || "");
+  for (const node of button.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) node.textContent = ` ${label}`;
+  }
+  queueMicrotask(() => {
+    button.disabled = true;
+  });
+}
+
+document.addEventListener("submit", async (event) => {
   if (event.defaultPrevented) return;
   const form = event.target;
   const submitter = event.submitter;
-  if (!confirmed(submitter || form)) {
+  const message = confirmationFor(submitter) || confirmationFor(form);
+  if (message && form.dataset.wellConfirmed !== "1") {
     event.preventDefault();
+    if (await ask(message)) {
+      form.dataset.wellConfirmed = "1";
+      form.requestSubmit(submitter || undefined);
+      delete form.dataset.wellConfirmed;
+    }
     return;
   }
   const name = (submitter && submitter.dataset.wellSwap) || form.dataset.wellSwap;
-  if (!name) return;
+  if (!name) {
+    busy(form, submitter);
+    return;
+  }
   event.preventDefault();
   const data = new FormData(form, submitter || undefined);
   const action = new URL(
