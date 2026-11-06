@@ -320,8 +320,9 @@ class Parser {
             if (!hasValue || value.trim() == "") {
                 error("missing-binding-value", '${name} needs an expression', attributeStart);
             }
-            return new Attribute(name.substr(1), Binding(value.trim(), position(valueStart)), at,
-                valueAt);
+            var expression = expressionAt(value, valueStart);
+            return new Attribute(name.substr(1), Binding(expression.source, expression.position),
+                at, valueAt);
         }
         switch directive {
             case If | ElseIf | For | Let:
@@ -337,8 +338,21 @@ class Parser {
             error("invalid-for", ':for needs "name in list"', valueStart,
                 'Write :for="item in items"');
         }
-        var expression = hasValue ? value.trim() : null;
-        return new Attribute(name, Directive(directive, expression, valueAt), at, valueAt);
+        if (!hasValue) {
+            return new Attribute(name, Directive(directive, null, null), at);
+        }
+        var expression = expressionAt(value, valueStart);
+        return new Attribute(name, Directive(directive, expression.source, expression.position),
+            at, valueAt);
+    }
+
+    /** The expression in an attribute value: trimmed, with the position of its first character. **/
+    function expressionAt(value:String, valueStart:Int):{source:String, position:Position} {
+        var first = 0;
+        while (first < value.length && isSpace(StringTools.fastCodeAt(value, first))) {
+            first++;
+        }
+        return {source: value.substr(first).rtrim(), position: position(valueStart + first)};
     }
 
     /** Text with interpolation between two offsets, used for attribute values. **/

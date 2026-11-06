@@ -129,10 +129,15 @@ enum AttributeKind {
     /** An attribute written without a value, such as `required`. **/
     Present;
 
-    /** `:name="expression"`: a typed value for an attribute or a component prop. **/
-    Binding(source:String, valuePosition:Position);
+    /**
+        `:name="expression"`: a typed value for an attribute or a component
+        prop. The source is trimmed and the position is that of its first
+        character, so expression diagnostics point into the template.
+    **/
+    Binding(source:String, expressionPosition:Position);
 
-    Directive(kind:DirectiveKind, source:Null<String>, valuePosition:Null<Position>);
+    /** A directive with its trimmed value, or null fields for one written without a value. **/
+    Directive(kind:DirectiveKind, source:Null<String>, expressionPosition:Null<Position>);
 }
 
 enum DirectiveKind {

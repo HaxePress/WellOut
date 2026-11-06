@@ -23,6 +23,7 @@ class Main {
         poolReusesWriters();
         poolBoundsRetainedWriters();
         ParserTest.run(check);
+        ExpressionTest.run(check);
         #if jvm
         rendersWithoutAllocating();
         #end

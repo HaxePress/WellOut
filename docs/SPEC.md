@@ -4,7 +4,7 @@ Status: draft 0.2, 2026-11-06. Templates use the `.well.html` extension. The sho
 
 Wellout renders typed, sandboxed HTML templates on the server. A browser receives HTML, CSS and the props of explicitly declared islands, and nothing else. A host application supplies view types, data sources, helpers, islands and HTTP transport. HaxePress is the first host; its integration plan lives in `hxwell-blog/docs/TEMPLATE-LANGUAGE.md`.
 
-Implementation status: the runtime `ByteWriter` and `WriterPool` exist (§14), and so does the template parser for §3, which keeps expressions as source with their positions. The expression parser, type checker, IR and backends are not started.
+Implementation status: the runtime `ByteWriter` and `WriterPool` exist (§14), and so do the template parser for §3, which keeps expressions as source with their positions, and the expression parser for §4.1, loop headers, prop declarations and type syntax. The type checker, IR and backends are not started.
 
 ## 1. Goals
 
@@ -131,6 +131,10 @@ literal        = string | number | "true" | "false" | "null" ;
 - `condition ? value` without `: other` yields nothing when the condition fails. It is meant for class lists and optional text.
 - `+`, `-`, `*`, `/` and `%` operate on numbers. Text is composed with interpolation.
 - `in` tests membership in a list.
+- Comparisons do not chain: `a < b < c` is an error. Combine comparisons with `and`.
+- Positional arguments come before named arguments, and record keys are unique.
+- Strings use single or double quotes with the escapes `\\`, `\'`, `\"`, `\n`, `\t` and `\r`. Integers fit in 32 bits; larger numbers are written as decimals.
+- `&&`, `||`, `!`, `===` and a single `=` are rejected with a hint naming the Wellout form.
 
 ### 4.2 Names
 
@@ -140,7 +144,13 @@ literal        = string | number | "true" | "false" | "null" ;
 
 ### 4.3 Types
 
-Types are `String`, `Int`, `Float`, `Bool`, `Date`, `Url`, `SafeHtml`, `Fragment`, `List<T>`, `Map<String, T>`, nullable `T?` and the host's view types (§6). The compiler infers expression types and reports:
+Types are `String`, `Int`, `Float`, `Bool`, `Date`, `Url`, `SafeHtml`, `Fragment`, `List<T>`, `Map<String, T>`, nullable `T?` and the host's view types (§6). In declarations they are written as:
+
+```
+type = identifier [ "<" type { "," type } ">" ] [ "?" ] ;
+```
+
+The compiler infers expression types and reports:
 
 - unknown fields, with suggestions such as "did you mean `title`?",
 - type mismatches in props, comparisons and filter arguments,
@@ -184,7 +194,7 @@ Routes used by templates must be named.
 <props post="ContentSummary" featured="Bool = false" heading="String?" />
 ```
 
-- Each attribute declares one prop: the attribute name is the prop name, and the value is its type, optionally followed by `= default`. Props without defaults are required.
+- Each attribute declares one prop: the attribute name is the prop name, and the value is `type [ "=" expression ]` with the type syntax of §4.3. Props without defaults are required.
 - Declarations are attributes so that HTML formatters keep them intact; a long declaration is formatted one attribute per line.
 - Page templates declare the props their route provides; components declare the props their callers pass.
 
