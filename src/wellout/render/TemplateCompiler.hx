@@ -324,6 +324,10 @@ class TemplateCompiler {
                 classAttribute(attribute, element.forwardsAttributes, scope, builder);
                 continue;
             }
+            if (StringTools.startsWith(attribute.name, "data-well-")) {
+                // Runtime behaviours such as data-well-confirm need the client script.
+                builder.op(new RuntimeMarkOp());
+            }
             this.attribute(attribute, scope, builder);
         }
         if (element.fragment != null) {
