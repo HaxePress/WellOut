@@ -21,16 +21,20 @@ using StringTools;
 class TestHost implements RenderHost {
     public var base = "";
 
+    final mapper:String->String;
+
     final site:Dynamic = {site_name: "Field & Notes", tagline: null};
 
-    public function new() {}
+    public function new() {
+        mapper = url -> '${base}${url}';
+    }
 
     public function root(name:String):Dynamic {
         return name == "site" ? site : null;
     }
 
-    public function linkBase():String {
-        return base;
+    public function linkMapper():Null<String->String> {
+        return base == "" ? null : mapper;
     }
 
     public function csrfToken():String {

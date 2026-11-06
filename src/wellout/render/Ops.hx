@@ -173,7 +173,8 @@ class UrlPart {
 /**
     A URL attribute (SPEC §8.2). A static start that decides the scheme is
     classified at compile time; otherwise the value is checked when it is
-    written. Site-relative URLs get the host's link base.
+    written. Site-relative URLs pass through the host's link mapper when a
+    render has one.
 **/
 class UrlAttributeOp extends Op {
     final prefix:Bytes;
@@ -189,21 +190,19 @@ class UrlAttributeOp extends Op {
         this.parts = parts;
         this.omitNull = omitNull;
         var first = parts.length > 0 ? parts[0] : null;
-        staticClass = first == null ? Urls.SAFE : first.literal == null ? -1 : Urls.classifyPrefix(first.literal,
+        staticClass = first == null ? Urls.SAFE : first.literal == null ? -1 : Urls.classifyPrefix(StringTools.htmlUnescape(first.literal),
             parts.length == 1);
     }
 
     public function render(context:RenderContext):Void {
         var out = context.out;
         if (staticClass >= 0) {
-            if (staticClass == Urls.UNDECIDED) {
+            if (staticClass == Urls.UNDECIDED
+                || (staticClass == Urls.SITE && context.linkMapper != null)) {
                 composed(context);
                 return;
             }
             out.chunk(prefix);
-            if (staticClass == Urls.SITE) {
-                out.text(context.linkBase);
-            }
             if (staticClass != Urls.UNSAFE) {
                 writeParts(context, 0);
             }
@@ -216,15 +215,13 @@ class UrlAttributeOp extends Op {
         }
         var text = lead == null ? "" : lead;
         var classification = Urls.classifyPrefix(text, parts.length == 1);
-        if (classification == Urls.UNDECIDED) {
+        if (classification == Urls.UNDECIDED
+            || (classification == Urls.SITE && context.linkMapper != null)) {
             composed(context);
             return;
         }
         out.chunk(prefix);
         if (classification != Urls.UNSAFE) {
-            if (classification == Urls.SITE) {
-                out.text(context.linkBase);
-            }
             out.text(text);
             writeParts(context, 1);
         }
@@ -243,12 +240,12 @@ class UrlAttributeOp extends Op {
         }
     }
 
-    /** Builds the whole URL first when its static start leaves the scheme open. **/
+    /** Builds the whole URL when the scheme is still open or a link mapper applies. **/
     function composed(context:RenderContext):Void {
         var text = new StringBuf();
         for (part in parts) {
             if (part.literal != null) {
-                text.add(htmlDecode(part.literal));
+                text.add(StringTools.htmlUnescape(part.literal));
             } else {
                 var value = Values.toText(part.value.value(context));
                 if (value != null) {
@@ -260,17 +257,12 @@ class UrlAttributeOp extends Op {
         var classification = Urls.classify(url);
         var out = context.out;
         out.chunk(prefix);
-        if (classification == Urls.SITE) {
-            out.text(context.linkBase);
-        }
-        if (classification != Urls.UNSAFE) {
+        if (classification == Urls.SITE && context.linkMapper != null) {
+            out.text(context.linkMapper(url));
+        } else if (classification != Urls.UNSAFE) {
             out.text(url);
         }
         out.byte('"'.code);
-    }
-
-    static function htmlDecode(text:String):String {
-        return StringTools.htmlUnescape(text);
     }
 }
 
@@ -307,10 +299,12 @@ class SrcsetAttributeOp extends Op {
                 out.trusted(", ");
             }
             first = false;
-            if (classification == Urls.SITE) {
-                out.text(context.linkBase);
+            if (classification == Urls.SITE && context.linkMapper != null) {
+                var url = context.linkMapper(space < 0 ? trimmed : trimmed.substr(0, space));
+                out.text(space < 0 ? url : url + trimmed.substr(space));
+            } else {
+                out.text(trimmed);
             }
-            out.text(trimmed);
         }
         out.byte('"'.code);
     }

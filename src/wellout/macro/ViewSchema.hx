@@ -31,13 +31,65 @@ class ViewSchema {
             };
             state.view(resolved, type.pos);
         }
-        var statements:Array<Expr> = [macro var target:wellout.check.HostContract = $contract];
-        for (view in state.views) {
-            statements.push(macro target.addView($view));
-        }
-        statements.push(macro target);
-        return macro $b{statements};
+        return state.registration(contract);
     }
+
+    /**
+        Registers every typedef marked `@:well.view` in a package and its
+        subpackages, so each view type can live next to the code that fills
+        it:
+
+        ```haxe
+        ViewSchema.registerPackage(contract, "app.views");
+        ```
+    **/
+    public static macro function registerPackage(contract:Expr, packageName:String):Expr {
+        var state = new SchemaState();
+        var position = Context.currentPos();
+        for (module in modulesOf(packageName)) {
+            for (type in Context.getModule(module)) {
+                switch type {
+                    case TType(reference, _) if (reference.get().meta.has(":well.view")):
+                        state.view(type, position);
+                    default:
+                }
+            }
+        }
+        return state.registration(contract);
+    }
+
+    #if macro
+    static function modulesOf(packageName:String):Array<String> {
+        var relative = packageName.split(".").join("/");
+        var found:Array<String> = [];
+        var seen:Map<String, Bool> = [];
+        for (root in Context.getClassPath()) {
+            var directory = haxe.io.Path.join([root == "" ? "." : root, relative]);
+            collect(directory, packageName, found, seen);
+        }
+        found.sort(Reflect.compare);
+        return found;
+    }
+
+    static function collect(directory:String, packageName:String, found:Array<String>,
+            seen:Map<String, Bool>):Void {
+        if (!sys.FileSystem.exists(directory) || !sys.FileSystem.isDirectory(directory)) {
+            return;
+        }
+        for (entry in sys.FileSystem.readDirectory(directory)) {
+            var path = haxe.io.Path.join([directory, entry]);
+            if (sys.FileSystem.isDirectory(path)) {
+                collect(path, '${packageName}.${entry}', found, seen);
+            } else if (StringTools.endsWith(entry, ".hx")) {
+                var module = '${packageName}.${entry.substr(0, entry.length - 3)}';
+                if (!seen.exists(module)) {
+                    seen.set(module, true);
+                    found.push(module);
+                }
+            }
+        }
+    }
+    #end
 }
 
 #if macro
@@ -47,6 +99,15 @@ private class SchemaState {
     final seen:Map<String, Bool> = [];
 
     public function new() {}
+
+    public function registration(contract:Expr):Expr {
+        var statements:Array<Expr> = [macro var target:wellout.check.HostContract = $contract];
+        for (view in views) {
+            statements.push(macro target.addView($view));
+        }
+        statements.push(macro target);
+        return macro $b{statements};
+    }
 
     /** Registers a typedef as a view type and returns its name. **/
     public function view(type:Type, position:Position):String {

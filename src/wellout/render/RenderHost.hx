@@ -11,8 +11,12 @@ interface RenderHost {
     /** The value of an implicit root such as `site` (§5.6). **/
     function root(name:String):Dynamic;
 
-    /** A prefix for site-relative URLs, such as a theme preview base, or "" (§8.2). **/
-    function linkBase():String;
+    /**
+        Maps site-relative URLs, such as `/content`, before they are written,
+        for example to keep links inside a theme preview (§8.2). Null leaves
+        them unchanged, which costs nothing per link.
+    **/
+    function linkMapper():Null<String->String>;
 
     /** The CSRF token added to post forms (§8.5). **/
     function csrfToken():String;

@@ -53,5 +53,9 @@ class SchemaTest {
         }
         check(card.field("secret") == null, "private fields are hidden");
         check(card.field("author").requires == "team.view", "capability tags are kept");
+        var scanned = ViewSchema.registerPackage(new HostContract(), "views");
+        check(scanned.viewType("BadgeView") != null && scanned.viewType("BadgeTone") != null
+            && scanned.viewType("UnusedView") == null,
+            "registerPackage finds marked typedefs and the types they reference");
     }
 }

@@ -21,7 +21,7 @@ class RenderContext {
     public final head = new ByteWriter(1024);
     public final title = new ByteWriter(256);
     public final assets = new ByteWriter(512);
-    public var linkBase(default, null) = "";
+    public var linkMapper(default, null):Null<String->String> = null;
 
     /** The longest output in bytes, or 0 without a limit. **/
     public var maxOutput = 0;
@@ -69,7 +69,7 @@ class RenderContext {
         out = writer;
         head.reset();
         title.reset();
-        linkBase = host.linkBase();
+        linkMapper = host.linkMapper();
         this.rootNames = rootNames;
         while (roots.length < rootNames.length) {
             roots.push(null);
@@ -114,6 +114,7 @@ class RenderContext {
         host = null;
         main = null;
         out = null;
+        linkMapper = null;
     }
 
     public function root(index:Int):Dynamic {
