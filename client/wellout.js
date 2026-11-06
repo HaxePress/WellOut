@@ -202,7 +202,9 @@ document.addEventListener("click", async (event) => {
   }
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   const control = event.target.closest("a[data-well-confirm], button[data-well-confirm]");
-  if (control && !control.closest("form") && control.dataset.wellConfirmed !== "1") {
+  // A submit button is confirmed when its form submits, including one linked with form="…".
+  const submits = control instanceof HTMLButtonElement && control.form && control.type === "submit";
+  if (control && !submits && control.dataset.wellConfirmed !== "1") {
     event.preventDefault();
     if (await ask(confirmationFor(control))) {
       control.dataset.wellConfirmed = "1";
@@ -267,7 +269,10 @@ document.addEventListener("submit", async (event) => {
     action.search = new URLSearchParams(data).toString();
     swap(name, action.href, {}, true);
   } else {
-    swap(name, action.href, { method: "POST", body: data }, false);
+    // Send what the browser would: URL-encoded fields unless the form asks for multipart.
+    const multipart = form.enctype === "multipart/form-data";
+    const body = multipart ? data : new URLSearchParams(data);
+    swap(name, action.href, { method: "POST", body }, false);
   }
 });
 
@@ -283,7 +288,11 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("change", (event) => {
   const field = event.target.closest("[data-well-autosubmit]");
-  if (field && field.form) field.form.requestSubmit();
+  if (!field || !field.form) return;
+  // The attribute may name the submit button to use, for its name, value or formaction.
+  const submitter = document.getElementById(field.getAttribute("data-well-autosubmit") || "");
+  const usable = submitter && submitter.form === field.form && submitter.type === "submit";
+  field.form.requestSubmit(usable ? submitter : undefined);
 });
 
 window.addEventListener("popstate", (event) => {

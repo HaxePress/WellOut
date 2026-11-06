@@ -421,8 +421,9 @@ One small module provides fragment swapping, action submission, island loading a
 
 - The renderer writes fragments with `data-well-fragment="name"` and swap targets with `data-well-swap="name"`, and adds the runtime script at `<Assets />` when a page swaps or has islands.
 - A swap request carries `Well-Fragment: name`; the host answers with the fragment and the same response header. Any other response is followed as a normal navigation.
-- `data-well-confirm="message"` on a form, button or link asks before submitting or following it.
-- `data-well-autosubmit` on a form field submits its form when the value changes.
+- A form swap sends its fields as the browser would: in the query for `get`, URL-encoded for `post`, and as multipart only when the form has `enctype="multipart/form-data"`.
+- `data-well-confirm="message"` on a form, button or link asks before submitting or following it. A submit button, including one linked to its form with `form="id"`, is asked once, when its form submits.
+- `data-well-autosubmit` on a form field submits its form when the value changes. Its value may name the id of a submit button of that form, which is then the submitter (its name, value and `formaction` apply).
 - With `data-well-confirm`, a page may provide `<dialog id="well-confirm">` with an element marked `data-well-confirm-message` and buttons marked `data-well-answer="confirm"` and `data-well-answer="cancel"`; the prompt then uses the page's own design.
 - `data-well-open="id"` opens the `<dialog>` with that id as a modal; `data-well-close` closes the dialog it is in; a dialog with `data-well-dismiss` closes when its backdrop is clicked.
 - `data-well-reveal="id"` toggles a password input between hidden and shown text, updating `aria-pressed`, the label from `data-well-show-label` and `data-well-hide-label`, and children marked `data-well-pressed="true|false"`.
