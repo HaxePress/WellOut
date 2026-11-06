@@ -68,6 +68,9 @@ class ExpressionTest {
         expectExpression("'{{'", "'{{'", "braces inside a string");
         expectExpression("'a\\nb'", "'a\\nb'", "newline escape");
         expectExpression("'say \\u0022hi\\u0022'", "'say \"hi\"'", "unicode escape");
+        expectExpression("'Use custom\n      color'", "'Use custom color'",
+            "a line break in a string reads as one space");
+        expectExpression("'a  \r\n\t b'", "'a b'", "the indentation around a break is dropped");
         expectExpression("42", "42", "integer");
         expectExpression("1.5", "1.5", "decimal");
         expectExpression("2.0", "2.0", "decimal with a zero fraction");

@@ -175,6 +175,21 @@ class Lexer {
                 value.add(source.substring(segmentStart, end));
                 return new Token(Text(value.toString()), offset, end + 1 - offset);
             }
+            if (character == "\n".code || character == "\r".code) {
+                // A formatter may wrap long text: the break and its indentation read as one space.
+                var before = end;
+                while (before > segmentStart && isBlank(code(before - 1))) {
+                    before--;
+                }
+                value.add(source.substring(segmentStart, before));
+                while (end < length && (isBlank(code(end)) || code(end) == "\n".code
+                    || code(end) == "\r".code)) {
+                    end++;
+                }
+                value.add(" ");
+                segmentStart = end;
+                continue;
+            }
             if (character == "\\".code) {
                 var unicode = unicodeEscape(end);
                 if (unicode >= 0) {
@@ -200,6 +215,10 @@ class Lexer {
         }
         error("unterminated-string", "The string is not closed", offset);
         return null;
+    }
+
+    static inline function isBlank(character:Int):Bool {
+        return character == " ".code || character == "\t".code;
     }
 
     /** The code point of a `\\uXXXX` escape at `offset`, or -1. **/
