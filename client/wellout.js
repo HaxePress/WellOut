@@ -178,6 +178,11 @@ document.addEventListener("submit", (event) => {
   }
 });
 
+document.addEventListener("change", (event) => {
+  const field = event.target.closest("[data-well-autosubmit]");
+  if (field && field.form) field.form.requestSubmit();
+});
+
 window.addEventListener("popstate", (event) => {
   if (event.state && event.state.wellout) window.location.reload();
 });

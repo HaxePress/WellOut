@@ -420,6 +420,8 @@ One small module provides fragment swapping, action submission, island loading a
 - The renderer writes fragments with `data-well-fragment="name"` and swap targets with `data-well-swap="name"`, and adds the runtime script at `<Assets />` when a page swaps or has islands.
 - A swap request carries `Well-Fragment: name`; the host answers with the fragment and the same response header. Any other response is followed as a normal navigation.
 - `data-well-confirm="message"` on a form, button or link asks before submitting or following it.
+- `data-well-autosubmit` on a form field submits its form when the value changes.
+- Any static `data-well-*` attribute makes the page load the runtime.
 - Post forms receive a hidden `_token` field; `put`, `patch` and `delete` forms also receive `_method`.
 - The reference implementation is `client/wellout.js` (2.1 KB gzip).
 
