@@ -158,7 +158,8 @@ class Types {
         "Date" => TDate,
         "Url" => TUrl,
         "SafeHtml" => TSafeHtml,
-        "Fragment" => TFragment
+        "Fragment" => TFragment,
+        "Any" => TAny
     ];
     static final builtinNames = [
         "String",
@@ -170,7 +171,8 @@ class Types {
         "SafeHtml",
         "Fragment",
         "List",
-        "Map"
+        "Map",
+        "Any"
     ];
 
     public static function print(type:WellType):String {
@@ -275,6 +277,8 @@ class Types {
         return switch [a, b] {
             case [TInt, TFloat] | [TFloat, TInt]:
                 TFloat;
+            case [TUrl, TString] | [TString, TUrl]:
+                TString;
             case [TList(x), TList(y)]:
                 var item = unify(x, y);
                 item == null ? null : TList(item);
@@ -342,6 +346,8 @@ class Types {
         return switch [value, expected] {
             case [TAny, _]: true;
             case [TInt, TFloat]: true;
+            // A URL is text, and text written into a URL attribute is checked there.
+            case [TUrl, TString] | [TString, TUrl]: true;
             case [TList(a), TList(b)]: assignable(a, b, bindings);
             case [TMap(a), TMap(b)]: assignable(a, b, bindings);
             case [TRecord(a), TRecord(b)]: assignableFields(a, b, bindings);

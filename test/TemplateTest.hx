@@ -79,6 +79,7 @@ class TemplateTest {
         checksUrls();
         rendersBranchesAndLoops();
         rendersComponentsAndSlots();
+        rendersBranchLoopsAndHeadLoops();
         forwardsAttributes();
         collectsHeadContent();
         rendersFragments();
@@ -319,6 +320,15 @@ class TemplateTest {
             "Layout" =>
             '<props title="String" />\n<!doctype html>\n<html><head><HeadOutlet /><Assets /></head><body><Head><title>{{ title }}</title><meta name="layout" content="1"></Head><main><slot /></main></body></html>'
         ];
+    }
+
+    static function rendersBranchLoopsAndHeadLoops():Void {
+        var templates = [
+            "Page" =>
+            '<props on="Bool" tags="List<String>" values="Map<String, Any>" />\n<Head><meta :for="tag in tags" name="keyword" content="{{ tag }}" /></Head>\n<template :if="on"><b>on</b></template><i :else :for="tag in tags">{{ tag }}</i>{{ values[\'n\'] }}'
+        ];
+        expect(templates, "Page", {on: false, tags: ["a", "b"], values: {n: 3}},
+            '\n<i>a</i><i>b</i>3', ":else with :for, Any values and loops inside <Head>");
     }
 
     static function rendersComponentsAndSlots():Void {

@@ -99,6 +99,9 @@ class TemplateChecker {
     var headOutlet = false;
     var headDepth = 0;
 
+    /** Loop variables bound inside the current `<Head>`, which it may read. **/
+    final headLocals:Map<String, Bool> = [];
+
     public static function check(document:Document, contract:HostContract,
             components:ComponentResolver, name:String = "template",
             trusted:Bool = true):Result<CheckedTemplate> {
@@ -295,7 +298,8 @@ class TemplateChecker {
                     }
                 default:
             }
-            var node = checkElement(element, branchScope);
+            var node = element.directive(For) != null ? repeatNode(element,
+                branchScope) : checkElement(element, branchScope);
             if (node != null) {
                 branches.push(new CheckedBranch(condition, node));
             }
@@ -349,6 +353,23 @@ class TemplateChecker {
         return next;
     }
 
+    /** A branch element that also repeats, such as `<li :else :for="…">`. **/
+    function repeatNode(element:ElementNode, scope:Scope):Null<CheckedNode> {
+        var directive = element.directive(For);
+        switch directive.kind {
+            case Directive(_, source, position) if (source != null):
+                var parsed = ExpressionParser.parseLoop(source, position);
+                report(parsed.diagnostics);
+                if (parsed.value == null) {
+                    return null;
+                }
+                var repeat = checkLoop(element, parsed.value, scope);
+                return repeat == null ? null : Repeat(repeat);
+            default:
+                return null;
+        }
+    }
+
     function checkLoop(element:ElementNode, loop:LoopSyntax, scope:Scope):Null<CheckedRepeat> {
         if (loop.variable == "loop") {
             error("invalid-name", "loop is reserved for loop metadata", loop.variablePosition);
@@ -370,6 +391,10 @@ class TemplateChecker {
         var body = scope.child();
         body.bind(loop.variable, Variable, item);
         body.bind("loop", Loop, TView("Loop"));
+        if (headDepth > 0) {
+            headLocals.set(loop.variable, true);
+            headLocals.set("loop", true);
+        }
         var node = checkElement(element, body);
         if (node == null) {
             return null;
@@ -990,6 +1015,7 @@ class TemplateChecker {
         headDepth++;
         var children = checkNodes(element.children, scope);
         headDepth--;
+        headLocals.clear();
         return Head(children);
     }
 
@@ -1154,7 +1180,7 @@ class TemplateChecker {
     function requireHeadScope(value:TypedExpr):Void {
         walk(value, node -> {
             switch node.kind {
-                case Name(name, Variable | Loop):
+                case Name(name, Variable | Loop) if (!headLocals.exists(name)):
                     error("head-scope", '<Head> cannot read the loop or slot value ${name}',
                         node.position);
                 default:
