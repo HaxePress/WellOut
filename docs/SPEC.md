@@ -134,7 +134,7 @@ literal        = string | number | "true" | "false" | "null" ;
 - `in` tests membership in a list.
 - Comparisons do not chain: `a < b < c` is an error. Combine comparisons with `and`.
 - Positional arguments come before named arguments, and record keys are unique.
-- Strings use single or double quotes with the escapes `\\`, `\'`, `\"`, `\n`, `\t` and `\r`. Integers fit in 32 bits; larger numbers are written as decimals.
+- Strings use single or double quotes with the escapes `\\`, `\'`, `\"`, `\n`, `\t`, `\r` and `\uXXXX`. Generated templates use `\u0022` for a double quote inside an attribute. Integers fit in 32 bits; larger numbers are written as decimals.
 - `&&`, `||`, `!`, `===` and a single `=` are rejected with a hint naming the Wellout form.
 
 ### 4.2 Names

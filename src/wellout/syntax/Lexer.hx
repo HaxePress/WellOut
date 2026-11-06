@@ -176,10 +176,18 @@ class Lexer {
                 return new Token(Text(value.toString()), offset, end + 1 - offset);
             }
             if (character == "\\".code) {
+                var unicode = unicodeEscape(end);
+                if (unicode >= 0) {
+                    value.add(source.substring(segmentStart, end));
+                    value.addChar(unicode);
+                    end += 6;
+                    segmentStart = end;
+                    continue;
+                }
                 var escaped = end + 1 < length ? escapes.get(code(end + 1)) : null;
                 if (escaped == null) {
                     error("invalid-escape", "Unknown escape sequence", end,
-                        "Use \\\\, \\', \\\", \\n, \\t or \\r");
+                        "Use \\\\, \\', \\\", \\n, \\t, \\r or \\uXXXX");
                     return null;
                 }
                 value.add(source.substring(segmentStart, end));
@@ -192,6 +200,26 @@ class Lexer {
         }
         error("unterminated-string", "The string is not closed", offset);
         return null;
+    }
+
+    /** The code point of a `\\uXXXX` escape at `offset`, or -1. **/
+    function unicodeEscape(offset:Int):Int {
+        if (offset + 5 >= length || code(offset + 1) != "u".code) {
+            return -1;
+        }
+        var value = 0;
+        for (index in offset + 2...offset + 6) {
+            var digit = code(index);
+            var number = digit >= "0".code
+                && digit <= "9".code ? digit - "0".code : digit >= "a".code
+                    && digit <= "f".code ? digit - "a".code + 10 : digit >= "A".code
+                        && digit <= "F".code ? digit - "A".code + 10 : -1;
+            if (number < 0) {
+                return -1;
+            }
+            value = value * 16 + number;
+        }
+        return value;
     }
 
     function symbol(offset:Int):Null<Token> {

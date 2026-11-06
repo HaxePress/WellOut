@@ -67,6 +67,7 @@ class ExpressionTest {
         expectExpression("'it\\'s'", "'it\\'s'", "escaped quote");
         expectExpression("'{{'", "'{{'", "braces inside a string");
         expectExpression("'a\\nb'", "'a\\nb'", "newline escape");
+        expectExpression("'say \\u0022hi\\u0022'", "'say \"hi\"'", "unicode escape");
         expectExpression("42", "42", "integer");
         expectExpression("1.5", "1.5", "decimal");
         expectExpression("2.0", "2.0", "decimal with a zero fraction");
