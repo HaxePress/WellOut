@@ -15,6 +15,7 @@ class HostContract {
     final sources:Map<String, SourceSignature> = [];
     final islands:Map<String, IslandSignature> = [];
     final roots:Map<String, WellType> = [];
+    final cssFilters:Map<String, Bool> = ["color" => true, "length" => true, "number" => true];
     final viewOrder:Array<String> = [];
     final helperOrder:Array<String> = [];
     final filterOrder:Array<String> = [];
@@ -64,6 +65,19 @@ class HostContract {
         }
         islands.set(island.name, island);
         return this;
+    }
+
+    /**
+        Marks a host filter as safe in `style` attributes (§8.1): its output
+        must be validated CSS, such as declarations with checked values.
+    **/
+    public function addCssFilter(name:String):HostContract {
+        cssFilters.set(name, true);
+        return this;
+    }
+
+    public function isCssFilter(name:String):Bool {
+        return cssFilters.exists(name);
     }
 
     /** Declares an implicit root such as `site` (§5.6). **/

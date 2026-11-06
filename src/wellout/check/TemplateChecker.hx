@@ -86,8 +86,6 @@ class TemplateChecker {
     static final headElements:Map<String, Bool> = ["title" => true, "meta" => true, "link" => true];
     static final builtins = ["Head", "HeadOutlet", "Island", "Asset", "Assets"];
     static final islandLoads = ["eager", "idle", "visible", "interaction"];
-    static final cssFilters:Map<String,
-        Bool> = ["color" => true, "length" => true, "number" => true];
 
     final contract:HostContract;
     final components:ComponentResolver;
@@ -1129,7 +1127,7 @@ class TemplateChecker {
     /** Style values come only from typed CSS filters or numbers (§8.1). **/
     function requireCss(value:TypedExpr):Void {
         switch value.kind {
-            case FilterCall(_, filter, _) if (cssFilters.exists(filter.name)):
+            case FilterCall(_, filter, _) if (contract.isCssFilter(filter.name)):
                 return;
             default:
         }
