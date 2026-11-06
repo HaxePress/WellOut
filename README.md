@@ -11,7 +11,7 @@ Wellout is a server-side HTML template language for Haxe. Templates are typed an
 </article>
 ```
 
-Status: early development. The language is specified in [docs/SPEC.md](docs/SPEC.md) (draft 0.2). The runtime output layer, the template parser and the expression parser are implemented; the type checker and backends are next.
+Status: early development. The language is specified in [docs/SPEC.md](docs/SPEC.md) (draft 0.2). The runtime output layer, the template parser, the expression parser and the expression type checker are implemented; the template checker, IR and backends are next.
 
 ## What exists
 
@@ -19,6 +19,7 @@ Status: early development. The language is specified in [docs/SPEC.md](docs/SPEC
 - `wellout.WriterPool`: a bounded, thread-safe pool that drops writers which grew too large.
 - `wellout.syntax.Parser`: reads the strict HTML subset into a document tree with declarations, directives, bindings and interpolation. It reports structural problems with positions and hints, such as unclosed elements, a misplaced `:else`, event attributes and unquoted values.
 - `wellout.syntax.ExpressionParser`: parses the expression grammar, `:for` loop headers, prop declarations and type syntax into a tree with positions mapped into the template. Its diagnostics name the Wellout form for `&&`, `||`, `!` and `=`.
+- `wellout.check.ExpressionChecker`: infers expression types against a host contract of view types, helpers, filters and implicit roots, and resolves every name, field, helper and filter for the backends. Paths tested by a condition are non-null inside it, null passes through filters, and unknown names and fields come with "did you mean" hints.
 - A JVM test suite, including a check that steady-state rendering allocates 0 bytes.
 
 ## Layout

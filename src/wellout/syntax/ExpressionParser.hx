@@ -1,22 +1,8 @@
 package wellout.syntax;
 
+import wellout.Result;
 import wellout.syntax.Expr;
 import wellout.syntax.Lexer;
-
-/** A parse outcome: the value when parsing succeeded, and every diagnostic found. */
-class Parsed<T> {
-    public final value:Null<T>;
-    public final diagnostics:Array<Diagnostic>;
-
-    public function new(value:Null<T>, diagnostics:Array<Diagnostic>) {
-        this.value = value;
-        this.diagnostics = diagnostics;
-    }
-
-    public function hasErrors():Bool {
-        return diagnostics.length > 0;
-    }
-}
 
 /** Thrown after a diagnostic is recorded; an expression stops at its first problem. */
 private class ParseFailure {
@@ -58,7 +44,7 @@ class ExpressionParser {
     var tokens:Array<Token> = [];
     var index = 0;
 
-    public static function parse(source:String, ?base:Position):Parsed<Expr> {
+    public static function parse(source:String, ?base:Position):Result<Expr> {
         var parser = new ExpressionParser(source, base);
         return parser.run(() -> {
             var expression = parser.expression();
@@ -68,12 +54,12 @@ class ExpressionParser {
     }
 
     /** `name in list`, the value of a `:for` directive. */
-    public static function parseLoop(source:String, ?base:Position):Parsed<LoopSyntax> {
+    public static function parseLoop(source:String, ?base:Position):Result<LoopSyntax> {
         var parser = new ExpressionParser(source, base);
         return parser.run(() -> parser.loop());
     }
 
-    public static function parseType(source:String, ?base:Position):Parsed<TypeSyntax> {
+    public static function parseType(source:String, ?base:Position):Result<TypeSyntax> {
         var parser = new ExpressionParser(source, base);
         return parser.run(() -> {
             var type = parser.type();
@@ -83,7 +69,7 @@ class ExpressionParser {
     }
 
     /** `Type` or `Type = default`, the value of a `<props>` attribute. */
-    public static function parseProp(source:String, ?base:Position):Parsed<PropSyntax> {
+    public static function parseProp(source:String, ?base:Position):Result<PropSyntax> {
         var parser = new ExpressionParser(source, base);
         return parser.run(() -> parser.prop());
     }
@@ -93,16 +79,16 @@ class ExpressionParser {
         diagnostics = lexer.diagnostics;
     }
 
-    function run<T>(read:() -> T):Parsed<T> {
+    function run<T>(read:() -> T):Result<T> {
         var lexed = lexer.tokenize();
         if (lexed == null) {
-            return new Parsed(null, diagnostics);
+            return new Result(null, diagnostics);
         }
         tokens = lexed;
         try {
-            return new Parsed(read(), diagnostics);
+            return new Result(read(), diagnostics);
         } catch (failure:ParseFailure) {
-            return new Parsed(null, diagnostics);
+            return new Result(null, diagnostics);
         }
     }
 

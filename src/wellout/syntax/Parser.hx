@@ -15,7 +15,12 @@ class ParseResult {
     }
 
     public function hasErrors():Bool {
-        return diagnostics.length > 0;
+        for (diagnostic in diagnostics) {
+            if (diagnostic.isError()) {
+                return true;
+            }
+        }
+        return false;
     }
 }
 

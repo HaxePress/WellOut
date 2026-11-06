@@ -4,7 +4,7 @@ Status: draft 0.2, 2026-11-06. Templates use the `.well.html` extension. The sho
 
 Wellout renders typed, sandboxed HTML templates on the server. A browser receives HTML, CSS and the props of explicitly declared islands, and nothing else. A host application supplies view types, data sources, helpers, islands and HTTP transport. HaxePress is the first host; its integration plan lives in `hxwell-blog/docs/TEMPLATE-LANGUAGE.md`.
 
-Implementation status: the runtime `ByteWriter` and `WriterPool` exist (§14), and so do the template parser for §3, which keeps expressions as source with their positions, and the expression parser for §4.1, loop headers, prop declarations and type syntax. The type checker, IR and backends are not started.
+Implementation status: the runtime `ByteWriter` and `WriterPool` exist (§14), and so do the template parser for §3, which keeps expressions as source with their positions, the expression parser for §4.1, loop headers, prop declarations and type syntax, and the expression type checker for §4.3 and §4.4 against a host contract (§6.3). The template checker, IR and backends are not started.
 
 ## 1. Goals
 
@@ -157,12 +157,13 @@ The compiler infers expression types and reports:
 - nullable values passed to non-null props,
 - unused props and sources (warnings).
 
-Inside an `:if` branch, a tested path is treated as non-null. Lists are indexed with `Int`, maps with `String`. A computed map key makes the analyzer require every public entry of that map (§7.2).
+A path tested by `:if` or `:else-if`, by the left operand of `and`, by the condition of `? :` or by `path != null` is non-null in the part it guards, and so is every prefix of it. Arithmetic, ordering comparisons and non-null parameters reject nullable values; `??` or `default` supplies a value. Lists are indexed with `Int`, maps with `String`, and an index read is nullable because the entry may be missing. A computed map key makes the analyzer require every public entry of that map (§7.2).
 
 ### 4.4 Truthiness and null
 
 - Falsy values are `false`, `null`, `""`, `0`, `0.0` and empty lists and maps. Everything else is truthy.
 - Paths are null-safe: a null segment yields `null`.
+- Filters are null-safe too: a filter whose input is not nullable is skipped for a null input and yields `null`, so `post.excerpt | truncate(160)` has the type `String?`. `default(value)` substitutes a value.
 - Printing `null` outputs nothing.
 
 ### 4.5 Filters and helpers

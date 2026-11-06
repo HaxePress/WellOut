@@ -24,6 +24,7 @@ class Main {
         poolBoundsRetainedWriters();
         ParserTest.run(check);
         ExpressionTest.run(check);
+        CheckerTest.run(check);
         #if jvm
         rendersWithoutAllocating();
         #end
