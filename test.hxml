@@ -3,3 +3,5 @@
 -main Main
 -D analyzer-optimize
 --jvm bin/test.jar
+-resource test/fixtures/PostCard.well.html@fixture.PostCard
+-resource test/fixtures/Home.well.html@fixture.Home

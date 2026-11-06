@@ -11,12 +11,13 @@ Wellout is a server-side HTML template language for Haxe. Templates are typed an
 </article>
 ```
 
-Status: early development. The language is specified in [docs/SPEC.md](docs/SPEC.md) (draft 0.2). The runtime output layer is implemented; the parser, type checker and backends are next.
+Status: early development. The language is specified in [docs/SPEC.md](docs/SPEC.md) (draft 0.2). The runtime output layer and the template parser are implemented; the expression parser, type checker and backends are next.
 
 ## What exists
 
 - `wellout.ByteWriter`: a reusable UTF-8 buffer. It copies pre-encoded static markup, escapes and encodes text in one pass, and writes integers as digits.
 - `wellout.WriterPool`: a bounded, thread-safe pool that drops writers which grew too large.
+- `wellout.syntax.Parser`: reads the strict HTML subset into a document tree with declarations, directives, bindings and interpolation. It reports structural problems with positions and hints, such as unclosed elements, a misplaced `:else`, event attributes and unquoted values.
 - A JVM test suite, including a check that steady-state rendering allocates 0 bytes.
 
 ## Layout

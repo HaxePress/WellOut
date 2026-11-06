@@ -1,0 +1,17 @@
+<props items="List<ContentSummary>" featured="ContentSummary?" />
+<sources travel="entries(collection: 'entry', category: 'travel', limit: 3)" />
+
+<Layout :title="site.site_name">
+  <PostCard :if="featured" :post="featured" :featured="true" />
+  <section fragment="list">
+    <PostCard :for="post in items" :post="post" />
+    <p :empty>{{ t('Nothing published yet') }}</p>
+  </section>
+  <aside>
+    <h2>{{ t('Travel') }}</h2>
+    <PostCard :for="post in travel" :post="post" />
+  </aside>
+  <Island name="newsletter:signup" :props="{ list: 'main' }" load="visible">
+    <a href="{{ route('newsletter.page') }}">{{ t('Subscribe') }}</a>
+  </Island>
+</Layout>

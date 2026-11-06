@@ -1,0 +1,10 @@
+<props post="ContentSummary" featured="Bool = false" />
+
+<article class="card" :class="featured ? 'is-featured'">
+  <img :if="post.image" src="{{ post.image }}" alt="{{ post.image_alt }}" />
+  <h2><a href="{{ post.url }}">{{ post.title }}</a></h2>
+  <p :if="post.excerpt">{{ post.excerpt | truncate(160) }}</p>
+  <time :if="post.published_at" datetime="{{ post.published_at | date('iso') }}">
+    {{ post.published_at | date('long') }}
+  </time>
+</article>

@@ -4,7 +4,7 @@ Status: draft 0.2, 2026-11-06. Templates use the `.well.html` extension. The sho
 
 Wellout renders typed, sandboxed HTML templates on the server. A browser receives HTML, CSS and the props of explicitly declared islands, and nothing else. A host application supplies view types, data sources, helpers, islands and HTTP transport. HaxePress is the first host; its integration plan lives in `hxwell-blog/docs/TEMPLATE-LANGUAGE.md`.
 
-Implementation status: the runtime `ByteWriter` and `WriterPool` exist (§14). The parser, type checker, IR and backends are not started.
+Implementation status: the runtime `ByteWriter` and `WriterPool` exist (§14), and so does the template parser for §3, which keeps expressions as source with their positions. The expression parser, type checker, IR and backends are not started.
 
 ## 1. Goals
 
@@ -46,6 +46,8 @@ The host provides:
 - source functions (§7),
 - helpers such as `t`, `route`, `asset`, `can`, `old` and `error` (§4.5),
 - the island registry (§9.3),
+- a component library for common page parts, such as navigation, pagination, icons and extension slots,
+- a link mapper for site-relative URLs (§8.2),
 - the template lookup chain (§5.5),
 - HTTP transport for fragments and actions (§9),
 - caching of compiled templates and loaded data.
@@ -218,6 +220,23 @@ The host defines the lookup chain for component names, for example a theme, its 
 
 The host declares a fixed set of implicit, read-only, typed roots, such as `site`, `locale`, `request`, `csrf` and `nonce`. Version 1 has no user-defined context.
 
+### 5.7 Head content
+
+Pages contribute to the document head with the built-in `<Head>` component:
+
+```html
+<Head>
+  <title>{{ item.seo_title ?? item.title }} — {{ site.site_name }}</title>
+  <meta name="description" content="{{ item.seo_description ?? item.excerpt }}" />
+  <link rel="canonical" href="{{ item.url }}" />
+</Head>
+```
+
+- `<Head>` may contain only `<title>`, `<meta>` and `<link>`.
+- A layout places `<HeadOutlet />` inside `<head>`.
+- `<Head>` subtrees are hoisted at compile time and rendered at the outlet, before the body. They may read props and sources, but not loop variables or slot values, so the head never waits for the body.
+- When several components contribute a `<title>`, the one closest to the page template wins.
+
 ## 6. Host data contracts
 
 ### 6.1 View types
@@ -320,6 +339,8 @@ Allowed URLs:
 
 Other values are replaced with an empty value. Hosts may restrict image URLs further, for example to managed media.
 
+Site-relative URLs pass through the host's link mapper before they are written. A host can use it to keep links inside a preview, as HaxePress does for theme previews, so templates always write plain paths such as `/content`.
+
 ### 8.3 SafeHtml
 
 `SafeHtml` values come only from trusted host code, such as a content renderer or an HTML sanitizer. Templates cannot create `SafeHtml`, and there is no `raw` filter. Hosts should cache large `SafeHtml` values as UTF-8 bytes (§14.3).
@@ -329,6 +350,8 @@ Other values are replaced with an empty value. Hosts may restrict image URLs fur
 The host supplies the tag allowlist. The reference policy:
 
 - **Allowed attributes:** `id`, `class`, `title`, `lang`, `dir`, `role`, `aria-*`, `data-*` and element-specific attributes.
+- **Interactive HTML without JavaScript:** `<details>`, `<summary>`, `<dialog>` and the `popover`, `popovertarget` and `popovertargetaction` attributes are allowed. They cover menus, disclosures and simple overlays without an island.
+- **Inline SVG:** `<svg>`, `<g>`, `<path>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>`, `<rect>`, `<title>` and `<desc>`, with presentation attributes such as `viewBox`, `d`, `fill`, `stroke`, `stroke-width` and `transform`. `<foreignObject>`, `<use>` with external references and SVG event attributes are rejected.
 - **Rejected:** `on*` attributes, untyped `style` values and `srcdoc`, plus the `<script>`, `<style>`, `<iframe>`, `<object>`, `<embed>` and `<base>` elements.
 
 ### 8.5 Forms
@@ -507,7 +530,7 @@ Large `SafeHtml` values and rarely changing shared regions should be cached as U
 
 ## 15. Open questions
 
-1. Attribute order: Prettier keeps the author's order, so placing control directives first needs a Wellout-aware formatter or a lint rule.
+1. Attribute order: Prettier formats `.well.html` stably at a print width of 100 (checked on the test fixtures), but it keeps the author's attribute order, so placing control directives first needs a lint rule.
 2. Scoped slots in version 1 or later.
 3. Budget defaults after profiling real templates.
 4. Backend B performance on the PHP target.

@@ -22,6 +22,7 @@ class Main {
         growsAcrossBlocks();
         poolReusesWriters();
         poolBoundsRetainedWriters();
+        ParserTest.run(check);
         #if jvm
         rendersWithoutAllocating();
         #end
