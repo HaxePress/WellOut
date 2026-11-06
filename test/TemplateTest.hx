@@ -318,17 +318,17 @@ class TemplateTest {
             "List" =>
             '<props items="List<Post>" />\n<ul><li :for="item in items"><slot name="row" :row="item" /></li></ul>',
             "Layout" =>
-            '<props title="String" />\n<!doctype html>\n<html><head><HeadOutlet /><Assets /></head><body><Head><title>{{ title }}</title><meta name="layout" content="1"></Head><main><slot /></main></body></html>'
+            '<props title="String" />\n<!doctype html>\n<html><head><HeadOutlet /><Assets /></head><body><well:head><title>{{ title }}</title><meta name="layout" content="1"></well:head><main><slot /></main></body></html>'
         ];
     }
 
     static function rendersBranchLoopsAndHeadLoops():Void {
         var templates = [
             "Page" =>
-            '<props on="Bool" tags="List<String>" values="Map<String, Any>" />\n<Head><meta :for="tag in tags" name="keyword" content="{{ tag }}" /></Head>\n<template :if="on"><b>on</b></template><i :else :for="tag in tags">{{ tag }}</i>{{ values[\'n\'] }}'
+            '<props on="Bool" tags="List<String>" values="Map<String, Any>" />\n<well:head><meta :for="tag in tags" name="keyword" content="{{ tag }}" /></well:head>\n<template :if="on"><b>on</b></template><i :else :for="tag in tags">{{ tag }}</i>{{ values[\'n\'] }}'
         ];
         expect(templates, "Page", {on: false, tags: ["a", "b"], values: {n: 3}},
-            '\n<i>a</i><i>b</i>3', ":else with :for, Any values and loops inside <Head>");
+            '\n<i>a</i><i>b</i>3', ":else with :for, Any values and loops inside <well:head>");
     }
 
     static function rendersComponentsAndSlots():Void {
@@ -360,7 +360,7 @@ class TemplateTest {
     static function collectsHeadContent():Void {
         var templates = components();
         templates.set("Page",
-            '<props items="List<Post>" />\n<Layout title="Fallback">\n  <Head><title>{{ items[0].title ?? \'none\' }} — {{ site.site_name }}</title><meta name="description" content="Recent"></Head>\n  <Card :if="items[0]" :post="items[0]"><Head><title>card</title></Head></Card>\n</Layout>');
+            '<props items="List<Post>" />\n<Layout title="Fallback">\n  <well:head><title>{{ items[0].title ?? \'none\' }} — {{ site.site_name }}</title><meta name="description" content="Recent"></well:head>\n  <Card :if="items[0]" :post="items[0]"><well:head><title>card</title></well:head></Card>\n</Layout>');
         var output = render(templates, "Page", {items: [post("A")]});
         var expected = '<!doctype html>\n<html><head><title>A — Field &amp; Notes</title><meta name="layout" content="1"><meta name="description" content="Recent"></head><body><main>\n<article class="card"><h2><a href="/content/a">A</a></h2>\n<span>3 min</span>\n\n<a href="/content/a">Read</a></article></main></body></html>';
         check(output == expected,
@@ -432,8 +432,8 @@ class TemplateTest {
         templates.set("F", '<props post="Post" />\n<Card :post="post" titel="x" />');
         expectProblem(templates, "F", "unknown-prop", 2, 20, "unknown prop");
         templates.set("G",
-            '<props items="List<Post>" />\n<p :for="post in items"><Head><title>{{ post.title }}</title></Head></p>');
-        expectProblem(templates, "G", "head-scope", 2, 41, "head reads a loop variable");
+            '<props items="List<Post>" />\n<p :for="post in items"><well:head><title>{{ post.title }}</title></well:head></p>');
+        expectProblem(templates, "G", "head-scope", 2, 46, "head reads a loop variable");
         templates.set("H",
             '<props items="List<Post>" unused="Int" />\n<p :for="x in items">{{ x.title }}</p>');
         expectProblem(templates, "H", "unused-prop", 1, 27, "unused prop warning");
@@ -445,8 +445,10 @@ class TemplateTest {
         expectProblem(templates, "K", "unknown-island", 1, 1, "unknown island");
         templates.set("L", '<props post="Post" />\n<p>{{ post }}</p>');
         expectProblem(templates, "L", "unprintable-value", 2, 7, "printing a record");
-        templates.set("M", '<Head><div>x</div></Head>');
-        expectProblem(templates, "M", "head-content", 1, 7, "head content");
+        templates.set("M", '<well:head><div>x</div></well:head>');
+        expectProblem(templates, "M", "head-content", 1, 12, "head content");
+        templates.set("S", '<Head><title>x</title></Head>');
+        expectProblem(templates, "S", "renamed-head", 1, 1, "<Head> is written <well:head>");
         templates.set("N", '<N />');
         expectProblem(templates, "N", "recursive-component", 1, 1, "recursion");
         templates.set("O", '<props color="String" />\n<p style="color: {{ color }}">x</p>');
@@ -467,7 +469,7 @@ class TemplateTest {
     static function rendersPagesWithoutAllocating():Void {
         var templates = components();
         templates.set("Page",
-            '<props items="List<Post>" />\n<Layout title="Home">\n  <Head><title>{{ t(\'Home\') }} — {{ site.site_name }}</title></Head>\n  <Card :for="post in items" :post="post" :featured="loop.first">\n    <p :if="post.excerpt">{{ post.excerpt | truncate(40) }}</p>\n    <ul><li :for="tag in post.tags" :class="loop.last ? \'last\'">{{ tag }}</li></ul>\n  </Card>\n</Layout>');
+            '<props items="List<Post>" />\n<Layout title="Home">\n  <well:head><title>{{ t(\'Home\') }} — {{ site.site_name }}</title></well:head>\n  <Card :for="post in items" :post="post" :featured="loop.first">\n    <p :if="post.excerpt">{{ post.excerpt | truncate(40) }}</p>\n    <ul><li :for="tag in post.tags" :class="loop.last ? \'last\'">{{ tag }}</li></ul>\n  </Card>\n</Layout>');
         var template = compiled(templates, "Page");
         if (template == null) {
             return;

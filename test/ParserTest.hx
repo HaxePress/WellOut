@@ -129,8 +129,8 @@ class ParserTest {
         expectTree('<details class="menu"><summary>{{ t(\'Menu\') }}</summary><Navigation region="header" /></details>',
             '(details class="menu" (summary "{t(\'Menu\')}") (Navigation region="header"))',
             "menu without JavaScript");
-        expectTree('<Head><title>{{ item.title }} — {{ site.site_name }}</title><meta name="description" content="{{ item.excerpt }}" /></Head>',
-            '(Head (title "{item.title} — {site.site_name}") (meta name="description" content="{item.excerpt}"))',
+        expectTree('<well:head><title>{{ item.title }} — {{ site.site_name }}</title><meta name="description" content="{{ item.excerpt }}" /></well:head>',
+            '(well:head (title "{item.title} — {site.site_name}") (meta name="description" content="{item.excerpt}"))',
             "head content");
     }
 

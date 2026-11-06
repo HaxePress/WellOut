@@ -84,7 +84,7 @@ class TemplateChecker {
             name => true
     ];
     static final headElements:Map<String, Bool> = ["title" => true, "meta" => true, "link" => true];
-    static final builtins = ["Head", "HeadOutlet", "Island", "Asset", "Assets"];
+    static final builtins = ["well:head", "HeadOutlet", "Island", "Asset", "Assets"];
     static final islandLoads = ["eager", "idle", "visible", "interaction"];
 
     final contract:HostContract;
@@ -99,7 +99,7 @@ class TemplateChecker {
     var headOutlet = false;
     var headDepth = 0;
 
-    /** Loop variables bound inside the current `<Head>`, which it may read. **/
+    /** Loop variables bound inside the current `<well:head>`, which it may read. **/
     final headLocals:Map<String, Bool> = [];
 
     public static function check(document:Document, contract:HostContract,
@@ -461,7 +461,7 @@ class TemplateChecker {
             return null;
         }
         if (headDepth > 0 && !headElements.exists(element.name)) {
-            error("head-content", '<Head> may contain only <title>, <meta> and <link>',
+            error("head-content", '<well:head> may contain only <title>, <meta> and <link>',
                 element.position);
             return null;
         }
@@ -740,8 +740,12 @@ class TemplateChecker {
     function checkComponentElement(element:ElementNode, scope:Scope,
             ignoreSlotAttribute:Bool):Null<CheckedNode> {
         switch element.name {
-            case "Head":
+            case "well:head":
                 return checkHead(element, scope);
+            case "Head":
+                error("renamed-head", "<well:head> is written <well:head>", element.position,
+                    "HTML formatters lower-case <well:head> to <head>, so the head component has a prefix");
+                return null;
             case "HeadOutlet":
                 return checkHeadOutlet(element);
             case "Island":
@@ -754,7 +758,7 @@ class TemplateChecker {
             default:
         }
         if (headDepth > 0) {
-            error("head-content", '<Head> may contain only <title>, <meta> and <link>',
+            error("head-content", '<well:head> may contain only <title>, <meta> and <link>',
                 element.position);
             return null;
         }
@@ -1008,7 +1012,8 @@ class TemplateChecker {
 
     function checkHead(element:ElementNode, scope:Scope):Null<CheckedNode> {
         if (headDepth > 0) {
-            error("nested-head", "<Head> cannot contain another <Head>", element.position);
+            error("nested-head", "<well:head> cannot contain another <well:head>",
+                element.position);
             return null;
         }
         requireNoAttributes(element);
@@ -1176,12 +1181,12 @@ class TemplateChecker {
         return checked.value;
     }
 
-    /** `<Head>` reads props and sources only, so the head never depends on the body (§5.7). **/
+    /** `<well:head>` reads props and sources only, so the head never depends on the body (§5.7). **/
     function requireHeadScope(value:TypedExpr):Void {
         walk(value, node -> {
             switch node.kind {
                 case Name(name, Variable | Loop) if (!headLocals.exists(name)):
-                    error("head-scope", '<Head> cannot read the loop or slot value ${name}',
+                    error("head-scope", '<well:head> cannot read the loop or slot value ${name}',
                         node.position);
                 default:
             }

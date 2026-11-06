@@ -594,7 +594,7 @@ class SlotOutletOp extends Op {
     }
 }
 
-/** `<Head>` content, collected and written at `<HeadOutlet />` (SPEC §5.7). */
+/** `<well:head>` content, collected and written at `<HeadOutlet />` (SPEC §5.7). */
 class HeadOp extends Op {
     final body:Op;
 
@@ -613,7 +613,7 @@ class HeadOp extends Op {
     }
 }
 
-/** A `<title>` inside `<Head>`: the one closest to the page template wins. */
+/** A `<title>` inside `<well:head>`: the one closest to the page template wins. */
 class TitleOp extends Op {
     final body:Op;
 

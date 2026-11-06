@@ -79,7 +79,7 @@ enum CheckedNode {
     /** A `<template>` grouping siblings without producing a tag. **/
     Group(children:Array<CheckedNode>);
 
-    /** `<Head>` content, rendered at the layout's `<HeadOutlet />`. **/
+    /** `<well:head>` content, rendered at the layout's `<HeadOutlet />`. **/
     Head(children:Array<CheckedNode>);
 
     HeadOutlet;

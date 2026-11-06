@@ -234,19 +234,20 @@ The host declares a fixed set of implicit, read-only, typed roots, such as `site
 
 ### 5.7 Head content
 
-Pages contribute to the document head with the built-in `<Head>` component:
+Pages contribute to the document head with the built-in `<well:head>` component:
 
 ```html
-<Head>
+<well:head>
   <title>{{ item.seo_title ?? item.title }} — {{ site.site_name }}</title>
   <meta name="description" content="{{ item.seo_description ?? item.excerpt }}" />
   <link rel="canonical" href="{{ item.url }}" />
-</Head>
+</well:head>
 ```
 
-- `<Head>` may contain only `<title>`, `<meta>` and `<link>`.
+- The prefix keeps HTML formatters from lower-casing the component into a `<head>` element. `<Head>` is rejected with a hint.
+- `<well:head>` may contain only `<title>`, `<meta>` and `<link>`.
 - A layout places `<HeadOutlet />` inside `<head>`.
-- `<Head>` subtrees are hoisted at compile time and rendered at the outlet, before the body. They may read props and sources, but not loop variables or slot values, so the head never waits for the body.
+- `<well:head>` subtrees are hoisted at compile time and rendered at the outlet, before the body. They may read props and sources and loop over them, but not read loop variables or slot values from outside, so the head never waits for the body.
 - When several components contribute a `<title>`, the one closest to the page template wins.
 
 ## 6. Host data contracts
