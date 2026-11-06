@@ -41,6 +41,11 @@ class ComponentLibrary implements ComponentResolver {
         return this;
     }
 
+    /** Whether this library itself defines `name`, without its fallback. **/
+    public function owns(name:String):Bool {
+        return sources.exists(name);
+    }
+
     public function has(name:String):Bool {
         return sources.exists(name) || (fallback != null && fallback.has(name));
     }
