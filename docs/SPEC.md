@@ -4,7 +4,7 @@ Status: draft 0.2, 2026-11-06. Templates use the `.well.html` extension. The sho
 
 Wellout renders typed, sandboxed HTML templates on the server. A browser receives HTML, CSS and the props of explicitly declared islands, and nothing else. A host application supplies view types, data sources, helpers, islands and HTTP transport. HaxePress is the first host; its integration plan lives in `hxwell-blog/docs/TEMPLATE-LANGUAGE.md`.
 
-Implementation status: the runtime `ByteWriter` and `WriterPool` exist (§14), and so do the template parser for §3, which keeps expressions as source with their positions, the expression parser for §4.1, loop headers, prop declarations and type syntax, and the expression type checker for §4.3 and §4.4 against a host contract (§6.3). The template checker, IR and backends are not started.
+Implementation status: the parser (§3, §4.1), the expression and template checkers (§4–§9), backend B (§13.3) with the runtime (§14), the client runtime (§9.4) and the view schema macro (§6.1) exist. Backend B reads fields reflectively; the generated accessors, backend A, backend C, the IR document format, the requirements analyzer (§7.2) and the node-visit and wall-time budgets are not started.
 
 ## 1. Goals
 
@@ -411,10 +411,17 @@ A request with the `Well-Fragment: results` header, or `?_fragment=results`, ren
 - The server renders the children as fallback content, followed by the props in a `<script type="application/json">` element that carries the response nonce.
 - `load` is `eager`, `idle`, `visible` or `interaction`. Island code loads only on pages that contain the island.
 - Island translation keys are the only catalogue entries sent to the browser.
+- Output: `<well-island data-name="…" data-load="…" data-module="…">fallback<script type="application/json" data-well-props nonce="…">{"props":…,"messages":{…}}</script></well-island>`. The module exports `mount(element, props, messages)`.
 
 ### 9.4 Runtime script
 
 One small module provides fragment swapping, action submission, island loading and focus and scroll restoration. The target size is under 5 KB gzip. Pages without swaps or islands load no JavaScript.
+
+- The renderer writes fragments with `data-well-fragment="name"` and swap targets with `data-well-swap="name"`, and adds the runtime script at `<Assets />` when a page swaps or has islands.
+- A swap request carries `Well-Fragment: name`; the host answers with the fragment and the same response header. Any other response is followed as a normal navigation.
+- `data-well-confirm="message"` on a form, button or link asks before submitting or following it.
+- Post forms receive a hidden `_token` field; `put`, `patch` and `delete` forms also receive `_method`.
+- The reference implementation is `client/wellout.js` (2.1 KB gzip).
 
 ### 9.5 Navigation
 
@@ -498,7 +505,7 @@ The IR is Wellout's document format. Visual builders may store it directly. Ever
 ### 13.3 Backends
 
 - **A. Build-time macro.** Generates one Haxe function per template that writes into a `ByteWriter`. Static runs become `static final` pre-encoded `Bytes`. Fields are read with typed access, so the Haxe compiler checks templates against the real types.
-- **B. Op tree.** The IR is lowered into immutable operation objects: chunk, text, number, condition, repeat, component, slot, fragment and island. Field reads use the generated typed accessor classes, without reflection or boxing. The host caches compiled trees by template version and compiler version.
+- **B. Op tree.** The IR is lowered into immutable operation objects: chunk, text, number, condition, repeat, component, slot, fragment and island. Field reads use the generated typed accessor classes, without reflection or boxing. The host caches compiled trees by template version and compiler version. The reference implementation (`wellout.render`) compiles checked templates directly, keeps values and loop counters in pooled frames, and allocates nothing per render in steady state; it reads fields reflectively until the accessors exist.
 - **C. JavaScript.** Backend B compiled with the Haxe JavaScript target. A builder canvas renders with it and adds `data-well-node` attributes in preview output only, to map rendered elements back to editable nodes.
 
 ### 13.4 Conformance

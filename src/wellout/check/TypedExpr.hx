@@ -40,6 +40,10 @@ enum TypedKind {
     IndexAccess(target:TypedExpr, key:TypedExpr);
 
     HelperCall(helper:HelperSignature, arguments:Array<TypedArgument>);
+
+    /** A `<sources>` call; its arguments are literals and context paths (SPEC §7.1). **/
+    SourceCall(source:SourceSignature, arguments:Array<TypedArgument>);
+
     FilterCall(target:TypedExpr, filter:FilterSignature, arguments:Array<TypedArgument>);
     ListValue(items:Array<TypedExpr>);
     RecordValue(entries:Array<TypedEntry>);

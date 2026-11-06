@@ -25,6 +25,8 @@ class Main {
         ParserTest.run(check);
         ExpressionTest.run(check);
         CheckerTest.run(check);
+        TemplateTest.run(check);
+        SchemaTest.run(check);
         #if jvm
         rendersWithoutAllocating();
         #end

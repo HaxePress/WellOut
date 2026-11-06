@@ -37,8 +37,74 @@ class ExpressionChecker {
         }
     }
 
+    /**
+        Checks a `<sources>` entry: a call of a host source function whose
+        arguments are literals, lists and records of literals, or context
+        paths. Every argument becomes part of the source's cache key.
+    **/
+    public static function checkSourceCall(expression:Expr, scope:Scope,
+            contract:HostContract):Result<TypedExpr> {
+        var checker = new ExpressionChecker(contract);
+        try {
+            var typed = checker.sourceCall(expression, scope);
+            return new Result(typed, checker.diagnostics);
+        } catch (failure:CheckFailure) {
+            return new Result(null, checker.diagnostics);
+        }
+    }
+
     function new(contract:HostContract) {
         this.contract = contract;
+    }
+
+    function sourceCall(expression:Expr, scope:Scope):TypedExpr {
+        switch expression.kind {
+            case Call(name, arguments):
+                var source = contract.source(name);
+                if (source == null) {
+                    fail("unknown-source", 'Unknown source function ${name}', expression.position,
+                        Suggestions.hint(name, contract.sourceNames()));
+                }
+                for (argument in arguments) {
+                    requireStaticArgument(argument.value);
+                }
+                var bindings:Map<String, WellType> = [];
+                var typedArguments = bindArguments(name, source.parameters, false, arguments,
+                    scope, bindings, expression.position);
+                var type = Types.substitute(source.returnType, bindings);
+                return typed(SourceCall(source, typedArguments), type, expression.position);
+            default:
+                return fail("invalid-source", "A source is a call of a source function",
+                    expression.position, "Write name=\"entries(collection: 'entry', limit: 3)\"");
+        }
+    }
+
+    /** Source arguments are literals or context paths, so they can form a cache key. **/
+    function requireStaticArgument(value:Expr):Void {
+        switch value.kind {
+            case StringLiteral(_) | IntLiteral(_) | FloatLiteral(_) | BoolLiteral(_) | NullLiteral:
+            case Path(_, segments):
+                for (segment in segments) {
+                    switch segment {
+                        case Index(key, _):
+                            requireStaticArgument(key);
+                        default:
+                    }
+                }
+            case Unary(Negate, operand):
+                requireStaticArgument(operand);
+            case ListLiteral(items):
+                for (item in items) {
+                    requireStaticArgument(item);
+                }
+            case RecordLiteral(entries):
+                for (entry in entries) {
+                    requireStaticArgument(entry.value);
+                }
+            default:
+                fail("source-argument", "Source arguments are literals or context paths",
+                    value.position, "Compute values in the host's source function instead");
+        }
     }
 
     function expression(expression:Expr, scope:Scope):TypedExpr {

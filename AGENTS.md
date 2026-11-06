@@ -25,4 +25,4 @@ Run the JVM test suite before finishing a change:
 haxe test.hxml && java -jar bin/test.jar
 ```
 
-Template fixtures under `test/fixtures` must also pass `prettier --check`.
+Template fixtures under `test/fixtures` and `client/wellout.js` must also pass `prettier --check`.

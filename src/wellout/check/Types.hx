@@ -118,6 +118,36 @@ class FilterSignature {
     }
 }
 
+/** A source function (SPEC §7.1): bounded data loading that a template declares by name. */
+class SourceSignature {
+    public final name:String;
+    public final parameters:Array<Parameter>;
+    public final returnType:WellType;
+
+    public function new(name:String, parameters:Array<Parameter>, returnType:WellType) {
+        this.name = name;
+        this.parameters = parameters;
+        this.returnType = returnType;
+    }
+}
+
+/** A client module mounted into server-rendered markup (§9.3), with its typed props. */
+class IslandSignature {
+    public final name:String;
+
+    /** The props type; a record or view type, or `{}` for an island without props. **/
+    public final props:WellType;
+
+    /** Translation keys the island needs in the browser; only these reach it (§10). **/
+    public final translationKeys:Array<String>;
+
+    public function new(name:String, props:WellType, ?translationKeys:Array<String>) {
+        this.name = name;
+        this.props = props;
+        this.translationKeys = translationKeys == null ? [] : translationKeys;
+    }
+}
+
 /** Operations on types: printing, nullability, unification, assignability and resolution. */
 class Types {
     static final scalars:Map<String, WellType> = [

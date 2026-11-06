@@ -4,17 +4,22 @@ import wellout.check.Types;
 
 /**
     What a host exposes to templates (SPEC §6.3): view types, helpers,
-    filters and implicit roots. A new contract already holds the built-in
-    filters and the `Loop` view type; the host adds its own entries.
+    filters, sources, islands and implicit roots. A new contract already
+    holds the built-in filters and the `Loop` view type; the host adds its
+    own entries.
 **/
 class HostContract {
     final views:Map<String, RecordType> = [];
     final helpers:Map<String, HelperSignature> = [];
     final filters:Map<String, FilterSignature> = [];
+    final sources:Map<String, SourceSignature> = [];
+    final islands:Map<String, IslandSignature> = [];
     final roots:Map<String, WellType> = [];
     final viewOrder:Array<String> = [];
     final helperOrder:Array<String> = [];
     final filterOrder:Array<String> = [];
+    final sourceOrder:Array<String> = [];
+    final islandOrder:Array<String> = [];
     final rootOrder:Array<String> = [];
 
     public function new() {
@@ -45,6 +50,22 @@ class HostContract {
         return this;
     }
 
+    public function addSource(source:SourceSignature):HostContract {
+        if (!sources.exists(source.name)) {
+            sourceOrder.push(source.name);
+        }
+        sources.set(source.name, source);
+        return this;
+    }
+
+    public function addIsland(island:IslandSignature):HostContract {
+        if (!islands.exists(island.name)) {
+            islandOrder.push(island.name);
+        }
+        islands.set(island.name, island);
+        return this;
+    }
+
     /** Declares an implicit root such as `site` (§5.6). **/
     public function addRoot(name:String, type:WellType):HostContract {
         if (!roots.exists(name)) {
@@ -66,6 +87,14 @@ class HostContract {
         return filters.get(name);
     }
 
+    public function source(name:String):Null<SourceSignature> {
+        return sources.get(name);
+    }
+
+    public function island(name:String):Null<IslandSignature> {
+        return islands.get(name);
+    }
+
     public function root(name:String):Null<WellType> {
         return roots.get(name);
     }
@@ -80,6 +109,14 @@ class HostContract {
 
     public function filterNames():Array<String> {
         return filterOrder.copy();
+    }
+
+    public function sourceNames():Array<String> {
+        return sourceOrder.copy();
+    }
+
+    public function islandNames():Array<String> {
+        return islandOrder.copy();
     }
 
     public function rootNames():Array<String> {

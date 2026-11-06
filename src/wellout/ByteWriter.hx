@@ -41,12 +41,67 @@ class ByteWriter {
 
     /** Writes text escaped for HTML text and double- or single-quoted attribute values. */
     public function text(value:String):Void {
-        write(value, true);
+        write(value, 0, value.length, true);
+    }
+
+    /** Writes the characters of `value` from `start` up to `end`, escaped like `text`. */
+    public function textRange(value:String, start:Int, end:Int):Void {
+        write(value, start, end, true);
     }
 
     /** Writes text that a trusted producer has already made safe, without escaping. */
     public function trusted(value:String):Void {
-        write(value, false);
+        write(value, 0, value.length, false);
+    }
+
+    /** Writes the characters of `value` from `start` up to `end` without escaping. */
+    public function trustedRange(value:String, start:Int, end:Int):Void {
+        write(value, start, end, false);
+    }
+
+    /** Writes one byte, such as a quote or a space in markup. */
+    public inline function byte(value:Int):Void {
+        reserve(1);
+        bytes.set(length++, value);
+    }
+
+    /** Writes a number: integral values as digits, others in their shortest Haxe form. */
+    public function float(value:Float):Void {
+        if (Math.isFinite(value) && value == Math.ffloor(value) && Math.abs(value) < 2147483648.0) {
+            int(Std.int(value));
+            return;
+        }
+        if (Math.isNaN(value) || !Math.isFinite(value)) {
+            return;
+        }
+        trusted(Std.string(value));
+    }
+
+    /** Drops everything written after `position`, for output that turned out to be empty. */
+    public function rewind(position:Int):Void {
+        if (position >= 0 && position < length) {
+            length = position;
+        }
+    }
+
+    /** Inserts the bytes of another writer at `offset`, moving what follows. */
+    public function insert(offset:Int, source:ByteWriter):Void {
+        var count = source.length;
+        if (count == 0) {
+            return;
+        }
+        reserve(count);
+        bytes.blit(offset + count, bytes, offset, length - offset);
+        bytes.blit(offset, source.bytes, 0, count);
+        length += count;
+    }
+
+    /** Keeps only the bytes from `start` up to `end`, moved to the front. */
+    public function keep(start:Int, end:Int):Void {
+        if (start > 0) {
+            bytes.blit(0, bytes, start, end - start);
+        }
+        length = end - start;
     }
 
     /** Writes an integer as decimal digits without creating a string. */
@@ -86,9 +141,8 @@ class ByteWriter {
         return bytes.getString(0, length);
     }
 
-    function write(value:String, escape:Bool):Void {
-        var count = value.length;
-        var index = 0;
+    function write(value:String, start:Int, count:Int, escape:Bool):Void {
+        var index = start;
         while (index < count) {
             var end = index + BLOCK_CHARACTERS < count ? index + BLOCK_CHARACTERS : count;
             // One extra character covers a surrogate pair that ends just after the block.

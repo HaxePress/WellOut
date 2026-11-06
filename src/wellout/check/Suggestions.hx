@@ -1,6 +1,6 @@
 package wellout.check;
 
-/** "Did you mean …?" hints for misspelled names, by edit distance. */
+/** "Did you mean …?" hints for misspelled names, by edit distance with transpositions. */
 class Suggestions {
     public static function hint(name:String, candidates:Array<String>):Null<String> {
         var closest = closest(name, candidates);
@@ -30,24 +30,35 @@ class Suggestions {
         return best;
     }
 
-    /** Levenshtein distance. **/
+    /** Optimal string alignment distance: a swap of two neighbours counts as one edit. **/
     static function editDistance(a:String, b:String):Int {
-        var previous = [for (column in 0...b.length + 1) column];
-        var current = [for (column in 0...b.length + 1) 0];
-        for (row in 1...a.length + 1) {
-            current[0] = row;
-            for (column in 1...b.length + 1) {
-                var cost = a.charCodeAt(row - 1) == b.charCodeAt(column - 1) ? 0 : 1;
-                var deletion = previous[column] + 1;
-                var insertion = current[column - 1] + 1;
-                var substitution = previous[column - 1] + cost;
-                current[column] = minimum(deletion, insertion, substitution);
-            }
-            var swap = previous;
-            previous = current;
-            current = swap;
+        var width = b.length + 1;
+        var rows = [for (_ in 0...(a.length + 1) * width) 0];
+        for (row in 0...a.length + 1) {
+            rows[row * width] = row;
         }
-        return previous[b.length];
+        for (column in 0...width) {
+            rows[column] = column;
+        }
+        for (row in 1...a.length + 1) {
+            for (column in 1...width) {
+                var cost = a.charCodeAt(row - 1) == b.charCodeAt(column - 1) ? 0 : 1;
+                var best = minimum(rows[(row - 1) * width + column] + 1,
+                    rows[row * width + column - 1] + 1,
+                    rows[(row - 1) * width + column - 1] + cost);
+                if (row > 1
+                    && column > 1
+                    && a.charCodeAt(row - 1) == b.charCodeAt(column - 2)
+                    && a.charCodeAt(row - 2) == b.charCodeAt(column - 1)) {
+                    var swapped = rows[(row - 2) * width + column - 2] + 1;
+                    if (swapped < best) {
+                        best = swapped;
+                    }
+                }
+                rows[row * width + column] = best;
+            }
+        }
+        return rows[a.length * width + b.length];
     }
 
     static inline function minimum(a:Int, b:Int, c:Int):Int {
