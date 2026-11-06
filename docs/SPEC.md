@@ -65,6 +65,7 @@ The host provides:
 - Every non-void element is closed explicitly. Void elements (`area`, `base`, `br`, `col`, `embed`, `hr`, `img`, `input`, `link`, `meta`, `source`, `track`, `wbr`) are never closed; a trailing `/` is accepted.
 - There are no implied start or end tags.
 - Attribute values are quoted. Output always uses double quotes.
+- Whitespace that contains a line break at the start or end of an element's content is formatting and is not written, as in JSX. Other whitespace runs that contain a line break are written as one line break, so formatters such as Prettier cannot change the output.
 - HTML comments are removed from output.
 - `<style>` and `<script>` are raw-text elements without interpolation. Untrusted templates may contain neither (§8.4).
 - Lowercase names are HTML elements. Names starting with an uppercase letter are components, including the built-in `<Island>`, `<Asset>` and `<Assets>`. `<template>` groups siblings without producing a tag; `<slot>`, `<props>` and `<sources>` are reserved language elements.

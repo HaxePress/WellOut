@@ -158,6 +158,60 @@ class TemplateCompiler {
         return list.slice(start, end);
     }
 
+    /**
+        Children without the line breaks that open and close them, like JSX:
+        whitespace with a newline at the start or end of an element's
+        content is formatting, not content. Elements whose content is all
+        conditional then stay empty, and formatters cannot change output.
+    **/
+    function inner(list:Array<CheckedNode>):Array<CheckedNode> {
+        if (preserveDepth > 0 || list.length == 0) {
+            return list;
+        }
+        var start = 0;
+        var end = list.length;
+        while (start < end && isBreak(list[start])) {
+            start++;
+        }
+        while (end > start && isBreak(list[end - 1])) {
+            end--;
+        }
+        var trimmed = list.slice(start, end);
+        if (trimmed.length == 0) {
+            return trimmed;
+        }
+        trimmed[0] = trimText(trimmed[0], true);
+        trimmed[trimmed.length - 1] = trimText(trimmed[trimmed.length - 1], false);
+        return trimmed;
+    }
+
+    static final leadingBreak = ~/^[ \t\r]*\n\s*/;
+    static final trailingBreak = ~/\s*\n[ \t\r]*$/;
+
+    static function isBreak(node:CheckedNode):Bool {
+        return switch node {
+            case Text([Literal(text)]): text.indexOf("\n") >= 0 && text.trim() == "";
+            default: false;
+        }
+    }
+
+    static function trimText(node:CheckedNode, leading:Bool):CheckedNode {
+        return switch node {
+            case Text(parts) if (parts.length > 0):
+                var copy = parts.copy();
+                var index = leading ? 0 : copy.length - 1;
+                switch copy[index] {
+                    case Literal(text):
+                        var pattern = leading ? leadingBreak : trailingBreak;
+                        copy[index] = Literal(pattern.replace(text, ""));
+                    default:
+                }
+                Text(copy);
+            default:
+                node;
+        }
+    }
+
     static function isBlank(node:CheckedNode):Bool {
         return switch node {
             case Text(parts):
@@ -210,23 +264,23 @@ class TemplateCompiler {
             case SlotOutlet(outlet):
                 var exposes = outlet.exposes == null ? null : expression(outlet.exposes, scope);
                 builder.op(new SlotOutletOp(outlet.name, exposes,
-                    sequence(outlet.fallback, scope)));
+                    sequence(inner(outlet.fallback), scope)));
             case Branches(branches):
                 this.branches(branches, scope, builder);
             case Repeat(repeat):
                 this.repeat(repeat, scope, builder);
             case Group(children):
-                nodes(children, scope, builder);
+                nodes(inner(children), scope, builder);
             case Head(children):
                 headDepth++;
-                builder.op(new HeadOp(sequence(children, scope)));
+                builder.op(new HeadOp(sequence(inner(children), scope)));
                 headDepth--;
             case HeadOutlet:
                 builder.op(new HeadOutletOp());
             case Island(island):
                 var props = island.props == null ? null : expression(island.props, scope);
                 builder.op(new IslandOp(island.signature.name, island.load, props,
-                    sequence(island.fallback, scope), island.signature.translationKeys));
+                    sequence(inner(island.fallback), scope), island.signature.translationKeys));
             case Asset(kind, path):
                 builder.op(new AssetOp(kind, path));
             case Assets:
@@ -355,7 +409,7 @@ class TemplateCompiler {
         if (preserves) {
             preserveDepth++;
         }
-        nodes(element.children, scope, builder);
+        nodes(preserves ? element.children : inner(element.children), scope, builder);
         if (preserves) {
             preserveDepth--;
         }
@@ -553,7 +607,7 @@ class TemplateCompiler {
                 contentScope.bind(content.variable, letSlot);
             }
             slotNames.push(content.name);
-            slotBodies.push(sequence(content.children, contentScope));
+            slotBodies.push(sequence(inner(content.children), contentScope));
             slotLets.push(letSlot);
         }
         builder.op(new ComponentOp(callee, propSlots, propValues, defaultSlots, defaultValues,

@@ -207,7 +207,7 @@ class TemplateTest {
             '<props post="Post" />\n<article>\n  <h2>{{ post.title }}</h2>\n  <p>{{ post.excerpt }}</p>\n</article>\n'
         ];
         expect(page, "Page", {post: post("Tom & <Jerry>", null)},
-            '<article>\n<h2>Tom &amp; &lt;Jerry&gt;</h2>\n<p></p>\n</article>',
+            '<article><h2>Tom &amp; &lt;Jerry&gt;</h2>\n<p></p></article>',
             "text is escaped and null prints nothing");
         var literal = ["Page" => '<p>Fish &amp; chips — {{ \'{{\' }} &lt;3</p>'];
         expect(literal, "Page", {}, '<p>Fish &amp; chips — {{ &lt;3</p>',
@@ -296,11 +296,11 @@ class TemplateTest {
             '<props items="List<Post>" mode="Int" />\n<p :if="mode == 1">one</p>\n<p :else-if="mode == 2">two</p>\n<p :else>many</p>\n<ul>\n  <li :for="post in items" :class="loop.last ? \'last\'">{{ loop.number }}/{{ loop.length }} {{ post.title }}<b :for="tag in post.tags">{{ loop.parent.index }}{{ tag }}</b></li>\n  <li :empty>none</li>\n</ul>'
         ];
         expect(page, "Page", {items: [post("A"), post("B")], mode: 2},
-            '<p>two</p>\n<ul>\n<li>1/2 A<b>0a</b><b>0b</b></li><li class="last">2/2 B<b>1a</b><b>1b</b></li>\n</ul>',
+            '<p>two</p>\n<ul><li>1/2 A<b>0a</b><b>0b</b></li><li class="last">2/2 B<b>1a</b><b>1b</b></li></ul>',
             "branches, loops, loop metadata and nested loops");
-        expect(page, "Page", {items: [], mode: 7}, '<p>many</p>\n<ul>\n<li>none</li>\n</ul>',
+        expect(page, "Page", {items: [], mode: 7}, '<p>many</p>\n<ul><li>none</li></ul>',
             "else and empty branches");
-        expect(page, "Page", {items: null, mode: 1}, '<p>one</p>\n<ul>\n<li>none</li>\n</ul>',
+        expect(page, "Page", {items: null, mode: 1}, '<p>one</p>\n<ul><li>none</li></ul>',
             "a null list renders the empty branch");
         var narrowed = [
             "Page" =>
@@ -336,7 +336,7 @@ class TemplateTest {
         templates.set("Page",
             '<props items="List<Post>" />\n<Card :for="post in items" :post="post" :featured="loop.first" label="Más &amp; más">\n  <template slot="meta"><em>{{ loop.index }}</em></template>\n  <p>{{ post.excerpt ?? \'—\' }}</p>\n</Card>\n<Card :if="items[0]" :post="items[0]" />');
         var output = render(templates, "Page", {items: [post("A", "x"), post("B")]});
-        var expected = '<article class="card is-featured">\n<h2><a href="/content/a">A</a></h2>\n<em>0</em>\n\n<p>x</p>\n\n<a href="/content/a">Más &amp; más</a>\n</article><article class="card">\n<h2><a href="/content/b">B</a></h2>\n<em>1</em>\n\n<p>—</p>\n\n<a href="/content/b">Más &amp; más</a>\n</article>\n<article class="card">\n<h2><a href="/content/a">A</a></h2>\n<span>3 min</span>\n\n<a href="/content/a">Read</a>\n</article>';
+        var expected = '<article class="card is-featured"><h2><a href="/content/a">A</a></h2>\n<em>0</em>\n<p>x</p>\n<a href="/content/a">Más &amp; más</a></article><article class="card"><h2><a href="/content/b">B</a></h2>\n<em>1</em>\n<p>—</p>\n<a href="/content/b">Más &amp; más</a></article>\n<article class="card"><h2><a href="/content/a">A</a></h2>\n<span>3 min</span>\n\n<a href="/content/a">Read</a></article>';
         check(output == expected,
             'components with props, defaults and slots: expected\n  ${expected}\ngot\n  ${output}');
         templates.set("Rows",
@@ -362,7 +362,7 @@ class TemplateTest {
         templates.set("Page",
             '<props items="List<Post>" />\n<Layout title="Fallback">\n  <Head><title>{{ items[0].title ?? \'none\' }} — {{ site.site_name }}</title><meta name="description" content="Recent"></Head>\n  <Card :if="items[0]" :post="items[0]"><Head><title>card</title></Head></Card>\n</Layout>');
         var output = render(templates, "Page", {items: [post("A")]});
-        var expected = '<!doctype html>\n<html><head><title>A — Field &amp; Notes</title><meta name="layout" content="1"><meta name="description" content="Recent"></head><body><main>\n\n<article class="card">\n<h2><a href="/content/a">A</a></h2>\n<span>3 min</span>\n\n<a href="/content/a">Read</a>\n</article>\n</main></body></html>';
+        var expected = '<!doctype html>\n<html><head><title>A — Field &amp; Notes</title><meta name="layout" content="1"><meta name="description" content="Recent"></head><body><main>\n<article class="card"><h2><a href="/content/a">A</a></h2>\n<span>3 min</span>\n\n<a href="/content/a">Read</a></article></main></body></html>';
         check(output == expected,
             'head content and the page title win: expected\n  ${expected}\ngot\n  ${output}');
     }
