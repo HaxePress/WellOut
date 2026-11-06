@@ -1,0 +1,9 @@
+{
+    "indentation": {
+        "character": "    ",
+        "tabWidth": 4
+    },
+    "wrapping": {
+        "maxLineLength": 100
+    }
+}

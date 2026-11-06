@@ -1,0 +1,12 @@
+{
+    "name": "wellout",
+    "url": "https://github.com/hxwell/wellout",
+    "license": "MIT",
+    "tags": ["hxwell", "template", "html"],
+    "description": "Typed, sandboxed HTML templates that render to UTF-8 without allocating.",
+    "version": "0.1.0",
+    "classPath": "src",
+    "releasenote": "Initial runtime: ByteWriter and WriterPool.",
+    "contributors": ["barisyild"],
+    "dependencies": {}
+}
