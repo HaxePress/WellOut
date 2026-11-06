@@ -215,9 +215,10 @@ function busy(form, submitter) {
   for (const node of button.childNodes) {
     if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) node.textContent = ` ${label}`;
   }
-  queueMicrotask(() => {
+  // Disable after the form data is built, so the submitter's name and value are still sent.
+  setTimeout(() => {
     button.disabled = true;
-  });
+  }, 0);
 }
 
 document.addEventListener("submit", async (event) => {
