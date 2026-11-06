@@ -84,7 +84,7 @@ class TemplateChecker {
             name => true
     ];
     static final headElements:Map<String, Bool> = ["title" => true, "meta" => true, "link" => true];
-    static final builtins = ["well:head", "HeadOutlet", "Island", "Asset", "Assets"];
+    static final builtins = ["well:head", "well:template", "HeadOutlet", "Island", "Asset", "Assets"];
     static final islandLoads = ["eager", "idle", "visible", "interaction"];
 
     final contract:HostContract;
@@ -743,9 +743,14 @@ class TemplateChecker {
             case "well:head":
                 return checkHead(element, scope);
             case "Head":
-                error("renamed-head", "<well:head> is written <well:head>", element.position,
-                    "HTML formatters lower-case <well:head> to <head>, so the head component has a prefix");
+                error("renamed-head", "<Head> is written <well:head>", element.position,
+                    "HTML formatters lower-case <Head> to <head>, so the head component has a prefix");
                 return null;
+            case "well:template":
+                // <template> groups siblings without a tag; this writes an HTML <template> element.
+                var html = new ElementNode("template", HtmlElement, element.attributes,
+                    element.children, element.position, element.selfClosing);
+                return checkHtmlElement(html, scope, ignoreSlotAttribute);
             case "HeadOutlet":
                 return checkHeadOutlet(element);
             case "Island":

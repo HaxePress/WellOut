@@ -68,7 +68,7 @@ The host provides:
 - Whitespace that contains a line break at the start or end of an element's content is formatting and is not written, as in JSX. Other whitespace runs that contain a line break are written as one line break, so formatters such as Prettier cannot change the output.
 - HTML comments are removed from output.
 - `<style>` and `<script>` are raw-text elements without interpolation. Untrusted templates may contain neither (§8.4).
-- Lowercase names are HTML elements. Names starting with an uppercase letter are components, including the built-in `<Island>`, `<Asset>` and `<Assets>`. `<template>` groups siblings without producing a tag; `<slot>`, `<props>` and `<sources>` are reserved language elements.
+- Lowercase names are HTML elements. Names starting with an uppercase letter are components, including the built-in `<Island>`, `<Asset>` and `<Assets>`. `<template>` groups siblings without producing a tag; write `<well:template>` for an HTML `<template>` element, whose content is checked and rendered like any other. `<slot>`, `<props>` and `<sources>` are reserved language elements.
 
 ### 3.3 Interpolation
 

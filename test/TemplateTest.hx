@@ -80,6 +80,7 @@ class TemplateTest {
         rendersBranchesAndLoops();
         rendersComponentsAndSlots();
         rendersBranchLoopsAndHeadLoops();
+        rendersHtmlTemplateElements();
         forwardsAttributes();
         collectsHeadContent();
         rendersFragments();
@@ -329,6 +330,15 @@ class TemplateTest {
         ];
         expect(templates, "Page", {on: false, tags: ["a", "b"], values: {n: 3}},
             '\n<i>a</i><i>b</i>3', ":else with :for, Any values and loops inside <well:head>");
+    }
+
+    static function rendersHtmlTemplateElements():Void {
+        var templates = [
+            "Page" =>
+            '<props tags="List<String>" />\n<well:template id="row" :if="tags"><li :for="tag in tags">{{ tag }}</li></well:template>'
+        ];
+        expect(templates, "Page", {tags: ["a", "b"]},
+            '<template id="row"><li>a</li><li>b</li></template>', "<well:template> writes an HTML <template>");
     }
 
     static function rendersComponentsAndSlots():Void {
