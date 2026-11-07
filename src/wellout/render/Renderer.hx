@@ -31,6 +31,13 @@ class Renderer {
     #end
     static final stylesheetOpen = Bytes.ofString('<link rel="stylesheet" href="');
     static final stylesheetClose = Bytes.ofString('">');
+    static final fontOpen = Bytes.ofString('<link rel="preload" href="');
+    // The checker allows these font files; each ending is written without building a string.
+    static final fontSuffixes = [".woff2", ".woff", ".ttf", ".otf"];
+    static final fontEnds = [
+        for (suffix in fontSuffixes)
+            Bytes.ofString('" as="font" type="font/${suffix.substr(1)}" crossorigin>')
+    ];
     static final scriptOpen = Bytes.ofString('<script type="module" src="');
     static final nonceOpen = Bytes.ofString('" nonce="');
     static final scriptClose = Bytes.ofString('"></script>');
@@ -142,9 +149,20 @@ class Renderer {
 
     static function writeAssets(context:RenderContext, out:ByteWriter):Void {
         var host = context.host;
+        // Fonts come first, so they download alongside the stylesheets that use them.
         for (index in 0...context.assetPaths.length) {
-            var url = host.assetUrl(context.assetKinds[index], context.assetPaths[index]);
-            if (context.assetKinds[index] == Css) {
+            if (context.assetKinds[index] == Font) {
+                font(host.assetUrl(Font, context.assetPaths[index]), context.assetPaths[index],
+                    out);
+            }
+        }
+        for (index in 0...context.assetPaths.length) {
+            var kind = context.assetKinds[index];
+            if (kind == Font) {
+                continue;
+            }
+            var url = host.assetUrl(kind, context.assetPaths[index]);
+            if (kind == Css) {
                 out.chunk(stylesheetOpen);
                 out.text(url);
                 out.chunk(stylesheetClose);
@@ -154,6 +172,21 @@ class Renderer {
         }
         if (context.needsRuntime) {
             script(host.runtimeScript(), host.nonce(), out);
+        }
+    }
+
+    /** A preload for a font file; one the host cannot find is left out. **/
+    static function font(url:String, path:String, out:ByteWriter):Void {
+        if (url == "") {
+            return;
+        }
+        for (index in 0...fontSuffixes.length) {
+            if (StringTools.endsWith(path, fontSuffixes[index])) {
+                out.chunk(fontOpen);
+                out.text(url);
+                out.chunk(fontEnds[index]);
+                return;
+            }
         }
     }
 

@@ -216,7 +216,12 @@ class TemplateImage {
         }
         if (Std.isOfType(value, AssetOp)) {
             var asset:AssetOp = cast value;
-            return [OpTag.ASSET, asset.kind == Css ? "css" : "js", asset.path];
+            var kind = switch asset.kind {
+                case Css: "css";
+                case Js: "js";
+                case Font: "font";
+            }
+            return [OpTag.ASSET, kind, asset.path];
         }
         if (Std.isOfType(value, IslandOp)) {
             var island:IslandOp = cast value;
@@ -595,6 +600,7 @@ private class ImageReader {
                 var kind = switch string(parts[1]) {
                     case "css": Css;
                     case "js": Js;
+                    case "font": Font;
                     default: throw new TemplateImageError("The template image is malformed.");
                 }
                 new AssetOp(kind, string(parts[2]));

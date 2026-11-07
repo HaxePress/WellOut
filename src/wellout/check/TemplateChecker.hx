@@ -26,6 +26,7 @@ class TemplateChecker {
     static final fragmentName = ~/^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
     static final slotName = ~/^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
     static final assetPath = ~/^[A-Za-z0-9_][A-Za-z0-9_\/.-]*$/;
+    static final fontSuffixes = [".woff2", ".woff", ".ttf", ".otf"];
     static final urlAttributes:Map<String, Bool> = [
         "href" => true,
         "src" => true,
@@ -1130,9 +1131,15 @@ class TemplateChecker {
         var found:Null<CheckedNode> = null;
         for (attribute in element.attributes) {
             var path = staticText(attribute);
-            var kind = attribute.name == "css" ? Css : attribute.name == "js" ? Js : null;
+            var kind = switch attribute.name {
+                case "css": Css;
+                case "js": Js;
+                case "font": Font;
+                default: null;
+            }
             if (kind == null || path == null || found != null) {
-                error("invalid-asset", '<Asset> takes one css or js path', attribute.position);
+                error("invalid-asset", '<Asset> takes one css, js or font path',
+                    attribute.position);
                 continue;
             }
             if (!assetPath.match(path) || path.indexOf("..") >= 0) {
@@ -1140,12 +1147,27 @@ class TemplateChecker {
                     attribute.position);
                 continue;
             }
+            if (kind == Font && !isFontFile(path)) {
+                error("invalid-asset",
+                    'The font ${path} is not a .woff2, .woff, .ttf or .otf file',
+                    attribute.position);
+                continue;
+            }
             found = Asset(kind, path);
         }
         if (found == null && element.attributes.length == 0) {
-            error("invalid-asset", '<Asset> takes one css or js path', element.position);
+            error("invalid-asset", '<Asset> takes one css, js or font path', element.position);
         }
         return found;
+    }
+
+    static function isFontFile(path:String):Bool {
+        for (suffix in fontSuffixes) {
+            if (StringTools.endsWith(path, suffix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     function requireNoAttributes(element:ElementNode):Void {

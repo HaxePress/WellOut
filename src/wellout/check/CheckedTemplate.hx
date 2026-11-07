@@ -101,6 +101,9 @@ enum CheckedPart {
 enum AssetKind {
     Css;
     Js;
+
+    /** A font preloaded before the stylesheets that use it. **/
+    Font;
 }
 
 enum AttributeValue {

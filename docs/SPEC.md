@@ -465,6 +465,7 @@ Server-pushed fragment updates over WebSockets are planned for version 2.
 ## 11. Assets and content security policy
 
 - `<Asset css="card.css" />` and `<Asset js="…" />` declare assets inside templates and components. The layout's `<Assets />` emits each asset once, fingerprinted, in order of first use.
+- `<Asset font="fonts/body.woff2" />` preloads a `.woff2`, `.woff`, `.ttf` or `.otf` file that a stylesheet uses, so the browser fetches it with the stylesheets instead of after them and text is not first drawn in a fallback font. Font preloads come before the stylesheets, as `<link rel="preload" as="font" type="font/…" crossorigin>`. A font the host cannot resolve is left out. Preload only fonts the page draws text with; browsers warn about unused preloads.
 - Every response gets a CSP nonce. Only system output carries it: the runtime script and island props. Untrusted templates cannot emit scripts.
 - Builder styles compile to a versioned stylesheet. Customizer variables are emitted in a style block with the nonce, so pages need no `unsafe-inline`.
 

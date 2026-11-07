@@ -55,7 +55,7 @@ class TestHost implements RenderHost {
     }
 
     public function assetUrl(kind:AssetKind, path:String):String {
-        return '/assets/${path}';
+        return path == "fonts/missing.woff2" ? "" : '/assets/${path}';
     }
 
     public function islandModule(name:String):String {
@@ -109,6 +109,7 @@ class TemplateTest {
         collectsHeadContent();
         rendersFragments();
         rendersIslandsAndAssets();
+        preloadsFonts();
         rendersForms();
         loadsSources();
         reportsTemplateProblems();
@@ -547,6 +548,17 @@ class TemplateTest {
             'island markup and escaped JSON (got ${output})');
         check(output.indexOf('<link rel="stylesheet" href="/assets/card.css"><script type="module" src="/assets/extra.js" nonce="n0nce"></script><script type="module" src="/wellout.js" nonce="n0nce"></script></head>') > 0,
             'assets are written once at <Assets /> with the runtime (got ${output})');
+    }
+
+    static function preloadsFonts():Void {
+        var templates = components();
+        templates.set("Page",
+            '<Layout title="T">\n  <Asset css="card.css" /><Asset font="fonts/body.woff2" /><Asset font="fonts/body.woff2" /><Asset font="fonts/title.ttf" /><Asset font="fonts/missing.woff2" />\n</Layout>');
+        var output = render(templates, "Page", {});
+        check(output.indexOf('<link rel="preload" href="/assets/fonts/body.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/assets/fonts/title.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="/assets/card.css"></head>') > 0,
+            'fonts are preloaded once, before the stylesheets, and unresolved fonts are left out (got ${output})');
+        var wrongFile = ["Page" => '<Asset font="fonts/body.css" />'];
+        expectProblem(wrongFile, "Page", "invalid-asset", 1, 8, "a font asset must be a font file");
     }
 
     static function rendersForms():Void {
