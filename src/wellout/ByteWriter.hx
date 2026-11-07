@@ -1,6 +1,10 @@
 package wellout;
 
 import haxe.io.Bytes;
+#if php
+import php.Global;
+import php.Syntax;
+#end
 
 /**
     A reusable UTF-8 output buffer.
@@ -8,6 +12,13 @@ import haxe.io.Bytes;
     Static template markup is copied as pre-encoded bytes. Dynamic text is
     escaped while it is encoded, so writing allocates nothing once the buffer
     has reached its working size.
+
+    On PHP the buffer is a native string. Haxe strings there index code
+    points, so encoding character by character takes quadratic time; the
+    native buffer appends in place and escapes with `htmlspecialchars`,
+    whose `ENT_QUOTES | ENT_HTML401` table is the one used here: `&amp;`,
+    `&lt;`, `&gt;`, `&quot;` and `&#039;`. Invalid UTF-8, which PHP strings
+    can hold, becomes U+FFFD as lone surrogates do on other targets.
 **/
 class ByteWriter {
     /** Characters encoded per capacity check; bounds how far capacity is over-reserved. */
@@ -16,14 +27,83 @@ class ByteWriter {
     /** The longest output of one character: `&quot;` and `&#039;` take six bytes. */
     static inline var MAX_BYTES_PER_CHARACTER = 6;
 
+    #if php
+    var buffer:String = "";
+
+    public var bytes(get, never):Bytes;
+    #else
     public var bytes(default, null):Bytes;
+    #end
     public var length(default, null):Int = 0;
     public var capacity(get, never):Int;
 
     public function new(capacity:Int = 8192) {
+        #if !php
         bytes = Bytes.alloc(capacity < 16 ? 16 : capacity);
+        #end
     }
 
+    #if php
+    /** The written bytes; PHP strings are immutable, so this shares the buffer without copying it. **/
+    function get_bytes():Bytes {
+        return Bytes.ofString(buffer);
+    }
+
+    inline function get_capacity():Int {
+        return length;
+    }
+
+    public function reset():Void {
+        buffer = "";
+        length = 0;
+    }
+
+    public function chunk(source:Bytes):Void {
+        append(source.getString(0, source.length));
+    }
+
+    public function text(value:String):Void {
+        append(Syntax.code("htmlspecialchars({0}, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401, 'UTF-8')",
+            value));
+    }
+
+    public function textRange(value:String, start:Int, end:Int):Void {
+        text(Global.mb_substr(value, start, end - start, "UTF-8"));
+    }
+
+    public function trusted(value:String):Void {
+        append(valid(value));
+    }
+
+    public function trustedRange(value:String, start:Int, end:Int):Void {
+        trusted(Global.mb_substr(value, start, end - start, "UTF-8"));
+    }
+
+    public function byte(value:Int):Void {
+        Syntax.code("{0} .= chr({1})", this.buffer, value);
+        length++;
+    }
+
+    static inline function slice(value:String, start:Int, count:Int):String {
+        return Syntax.code("substr({0}, {1}, {2})", value, start, count);
+    }
+
+    /** Appends in place; `piece` is a plain local, so the compiler never copies the buffer first. **/
+    function append(piece:String):Void {
+        Syntax.code("{0} .= {1}", this.buffer, piece);
+        length = Global.strlen(buffer);
+    }
+
+    /** `value` with invalid UTF-8 sequences replaced by U+FFFD. **/
+    static function valid(value:String):String {
+        if (Global.mb_check_encoding(value, "UTF-8")) {
+            return value;
+        }
+        return
+            Syntax.code("htmlspecialchars_decode(htmlspecialchars({0}, ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8'), ENT_NOQUOTES)",
+            value);
+    }
+    #else
     inline function get_capacity():Int {
         return bytes.length;
     }
@@ -64,6 +144,7 @@ class ByteWriter {
         reserve(1);
         bytes.set(length++, value);
     }
+    #end
 
     /** Writes a number: integral values as digits, others in their shortest Haxe form. */
     public function float(value:Float):Void {
@@ -80,6 +161,9 @@ class ByteWriter {
     /** Drops everything written after `position`, for output that turned out to be empty. */
     public function rewind(position:Int):Void {
         if (position >= 0 && position < length) {
+            #if php
+            buffer = slice(buffer, 0, position);
+            #end
             length = position;
         }
     }
@@ -90,22 +174,33 @@ class ByteWriter {
         if (count == 0) {
             return;
         }
+        #if php
+        buffer = slice(buffer, 0, offset) + source.buffer + slice(buffer, offset, length - offset);
+        #else
         reserve(count);
         bytes.blit(offset + count, bytes, offset, length - offset);
         bytes.blit(offset, source.bytes, 0, count);
+        #end
         length += count;
     }
 
     /** Keeps only the bytes from `start` up to `end`, moved to the front. */
     public function keep(start:Int, end:Int):Void {
+        #if php
+        buffer = slice(buffer, start, end - start);
+        #else
         if (start > 0) {
             bytes.blit(0, bytes, start, end - start);
         }
+        #end
         length = end - start;
     }
 
     /** Writes an integer as decimal digits without creating a string. */
     public function int(value:Int):Void {
+        #if php
+        append(Std.string(value));
+        #else
         reserve(11);
         if (value == 0) {
             bytes.set(length++, "0".code);
@@ -130,17 +225,27 @@ class ByteWriter {
             remaining = quotient;
         }
         length = end;
+        #end
     }
 
     /** A standalone copy of the written bytes. It allocates, so render paths should not use it. */
     public function toBytes():Bytes {
+        #if php
+        return Bytes.ofString(buffer);
+        #else
         return bytes.sub(0, length);
+        #end
     }
 
     public function toString():String {
+        #if php
+        return buffer;
+        #else
         return bytes.getString(0, length);
+        #end
     }
 
+    #if !php
     function write(value:String, start:Int, count:Int, escape:Bool):Void {
         var index = start;
         while (index < count) {
@@ -264,4 +369,5 @@ class ByteWriter {
         larger.blit(0, bytes, 0, length);
         bytes = larger;
     }
+    #end
 }

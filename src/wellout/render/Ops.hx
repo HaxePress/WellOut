@@ -460,9 +460,11 @@ class FormTokenOp extends Op {
     static final open = Bytes.ofString('<input type="hidden" name="_token" value="');
     static final close = Bytes.ofString('">');
 
+    final spoofedMethod:Null<String>;
     final method:Null<Bytes>;
 
     public function new(spoofedMethod:Null<String>) {
+        this.spoofedMethod = spoofedMethod;
         method = spoofedMethod == null ? null : Bytes.ofString('<input type="hidden" name="_method" value="${spoofedMethod}">');
     }
 
@@ -677,6 +679,7 @@ class IslandOp extends Op {
     static final propsEnd = Bytes.ofString('</script></well-island>');
 
     final name:String;
+    final load:String;
     final open:Bytes;
     final props:Null<Eval>;
     final fallback:Op;
@@ -685,6 +688,7 @@ class IslandOp extends Op {
     public function new(name:String, load:String, props:Null<Eval>, fallback:Op,
             translationKeys:Array<String>) {
         this.name = name;
+        this.load = load;
         open = Bytes.ofString('<well-island data-name="${name}" data-load="${load}');
         this.props = props;
         this.fallback = fallback;

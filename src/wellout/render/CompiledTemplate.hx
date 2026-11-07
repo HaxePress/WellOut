@@ -23,7 +23,10 @@ class CompiledProp {
 **/
 class CompiledTemplate {
     public final name:String;
-    public final checked:CheckedTemplate;
+
+    /** The checked template it was compiled from; null when restored from a `TemplateImage`. **/
+    public final checked:Null<CheckedTemplate>;
+
     public final rootNames:Array<String>;
     public var valueSlots(default, null):Int = 0;
     public var intSlots(default, null):Int = 0;
@@ -37,7 +40,7 @@ class CompiledTemplate {
     @:allow(wellout.render)
     var loopParents:Array<Int> = [];
 
-    public function new(name:String, checked:CheckedTemplate, rootNames:Array<String>) {
+    public function new(name:String, checked:Null<CheckedTemplate>, rootNames:Array<String>) {
         this.name = name;
         this.checked = checked;
         this.rootNames = rootNames;
@@ -54,6 +57,14 @@ class CompiledTemplate {
         loopParents.push(parent);
         intSlots = loopParents.length * 2;
         return id;
+    }
+
+    /** Restores the frame layout recorded in a `TemplateImage`. **/
+    @:allow(wellout.render)
+    function restoreLayout(valueSlots:Int, loopParents:Array<Int>):Void {
+        this.valueSlots = valueSlots;
+        this.loopParents = loopParents;
+        intSlots = loopParents.length * 2;
     }
 
     @:allow(wellout.render)

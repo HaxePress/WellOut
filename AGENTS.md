@@ -19,10 +19,11 @@ Wellout is framework-independent. Code under `src/wellout` must not import hxwel
 
 ## Verification
 
-Run the JVM test suite before finishing a change:
+Run the JVM and PHP test suites before finishing a change:
 
 ```
 haxe test.hxml && java -jar bin/test.jar
+haxe test-php.hxml && php bin/php/index.php
 ```
 
 Template fixtures under `test/fixtures` and `client/wellout.js` must also pass `prettier --check`.

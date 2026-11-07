@@ -3,6 +3,7 @@ package wellout.render;
 import wellout.Result;
 import wellout.check.ComponentLibrary;
 import wellout.check.HostContract;
+import wellout.render.TemplateImage.TemplateImageError;
 import wellout.syntax.Diagnostic;
 #if (target.threaded)
 import sys.thread.Mutex;
@@ -11,23 +12,27 @@ import sys.thread.Mutex;
 /**
     Templates checked against one contract and compiled for backend B,
     cached by name. A host keeps one set per template lookup chain, such as
-    per theme version, and drops it when templates change.
+    per theme version, and drops it when templates change. With a `store`,
+    compiled templates are also kept between processes as images.
 **/
 class TemplateSet {
     public final contract:HostContract;
     public final runtime:Runtime;
     public final library:ComponentLibrary;
     public final rootNames:Array<String>;
+    public final store:Null<TemplateStore>;
 
     final compiled:Map<String, Result<CompiledTemplate>> = [];
     #if (target.threaded)
     final lock = new Mutex();
     #end
 
-    public function new(contract:HostContract, runtime:Runtime, library:ComponentLibrary) {
+    public function new(contract:HostContract, runtime:Runtime, library:ComponentLibrary,
+            ?store:TemplateStore) {
         this.contract = contract;
         this.runtime = runtime;
         this.library = library;
+        this.store = store;
         rootNames = contract.rootNames();
     }
 
@@ -36,6 +41,12 @@ class TemplateSet {
         var cached = cachedTemplate(name);
         if (cached != null) {
             return cached;
+        }
+        var restored = restore(name);
+        if (restored != null) {
+            var result = new Result<CompiledTemplate>(restored, []);
+            remember(name, result);
+            return result;
         }
         var checked = library.check(name);
         if (checked == null) {
@@ -56,10 +67,30 @@ class TemplateSet {
                     failed = true;
                 }
             }
+            if (!failed && store != null) {
+                store.save(name, TemplateImage.encode(template));
+            }
             new Result(failed ? null : template, diagnostics);
         }
-        store(name, result);
+        remember(name, result);
         return result;
+    }
+
+    /** The stored image of `name` restored, or null to compile it; a stale image is ignored. **/
+    function restore(name:String):Null<CompiledTemplate> {
+        if (store == null || !library.has(name)) {
+            return null;
+        }
+        var image = store.load(name);
+        if (image == null) {
+            return null;
+        }
+        try {
+            var template = TemplateImage.decode(image, this);
+            return template.name == name ? template : null;
+        } catch (error:TemplateImageError) {
+            return null;
+        }
     }
 
     public function has(name:String):Bool {
@@ -77,7 +108,7 @@ class TemplateSet {
         #end
     }
 
-    function store(name:String, result:Result<CompiledTemplate>):Void {
+    function remember(name:String, result:Result<CompiledTemplate>):Void {
         #if (target.threaded)
         lock.acquire();
         compiled.set(name, result);

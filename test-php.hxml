@@ -1,0 +1,8 @@
+# The test suite on PHP, where ByteWriter and JsonWriter use native string functions.
+-cp src
+-cp test
+-main Main
+-D analyzer-optimize
+--php bin/php
+-resource test/fixtures/PostCard.well.html@fixture.PostCard
+-resource test/fixtures/Home.well.html@fixture.Home

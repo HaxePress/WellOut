@@ -48,13 +48,16 @@ class ConstEval extends Eval {
     final number:Float;
     final flag:Bool;
 
-    public function new(constant:Dynamic, kind:ValueKind) {
+    /** `written` is the written form of `constant` when it is already known, as in a `TemplateImage`. **/
+    public function new(constant:Dynamic, kind:ValueKind, ?written:Bytes) {
         super(kind);
         this.constant = constant;
         integer = constant == null ? 0 : Values.toInt(constant);
         number = constant == null ? 0 : Values.toFloat(constant);
         flag = Values.truthy(constant, kind);
-        if (constant != null) {
+        if (written != null) {
+            encoded = written;
+        } else if (constant != null) {
             var writer = new ByteWriter(64);
             Values.write(constant, kind, writer);
             encoded = writer.toBytes();
@@ -260,12 +263,16 @@ class CallArguments {
 }
 
 class HelperEval extends Eval {
+    /** The helper's name in the host contract, kept for `TemplateImage`. **/
+    public final name:String;
+
     final implementation:HelperImplementation;
     final arguments:CallArguments;
 
-    public function new(implementation:HelperImplementation, arguments:CallArguments,
+    public function new(name:String, implementation:HelperImplementation, arguments:CallArguments,
             kind:ValueKind) {
         super(kind);
+        this.name = name;
         this.implementation = implementation;
         this.arguments = arguments;
     }
@@ -291,11 +298,15 @@ class HelperEval extends Eval {
 class SourceEval {
     public final slot:Int;
 
+    /** The source's name in the host contract, kept for `TemplateImage`. **/
+    public final name:String;
+
     final load:SourceFunction;
     final arguments:CallArguments;
 
-    public function new(slot:Int, load:SourceFunction, arguments:CallArguments) {
+    public function new(slot:Int, name:String, load:SourceFunction, arguments:CallArguments) {
         this.slot = slot;
+        this.name = name;
         this.load = load;
         this.arguments = arguments;
     }
@@ -309,14 +320,18 @@ class SourceEval {
 }
 
 class FilterEval extends Eval {
+    /** The filter's name in the host contract, kept for `TemplateImage`. **/
+    public final name:String;
+
     final target:Eval;
     final implementation:FilterImplementation;
     final arguments:CallArguments;
     final skipsNull:Bool;
 
-    public function new(target:Eval, implementation:FilterImplementation, arguments:CallArguments,
-            skipsNull:Bool, kind:ValueKind) {
+    public function new(target:Eval, name:String, implementation:FilterImplementation,
+            arguments:CallArguments, skipsNull:Bool, kind:ValueKind) {
         super(kind);
+        this.name = name;
         this.target = target;
         this.implementation = implementation;
         this.arguments = arguments;

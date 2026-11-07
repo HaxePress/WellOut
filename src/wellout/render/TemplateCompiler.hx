@@ -238,7 +238,7 @@ class TemplateCompiler {
                         source.position);
                     return null;
                 }
-                return new SourceEval(slot, load,
+                return new SourceEval(slot, signature.name, load,
                     callArguments(signature.parameters, arguments, scope));
             default:
                 return null;
@@ -707,7 +707,7 @@ class TemplateCompiler {
                         value.position);
                     return new ConstEval(null, kind);
                 }
-                return new HelperEval(implementation,
+                return new HelperEval(helper.name, implementation,
                     callArguments(helper.parameters, arguments, scope), kind);
             case SourceCall(source, _):
                 error("internal", 'A source call outside <sources>: ${source.name}',
@@ -722,7 +722,7 @@ class TemplateCompiler {
                     return new ConstEval(null, kind);
                 }
                 var skipsNull = !Types.isNullable(filter.input) && filter.input != TAny;
-                return new FilterEval(expression(target, scope), implementation,
+                return new FilterEval(expression(target, scope), filter.name, implementation,
                     callArguments(filter.parameters, arguments, scope), skipsNull, kind);
             case ListValue(items):
                 return new ListEval([for (item in items) expression(item, scope)]);

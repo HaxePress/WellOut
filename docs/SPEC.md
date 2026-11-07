@@ -4,7 +4,7 @@ Status: draft 0.2, 2026-11-06. Templates use the `.well.html` extension. The sho
 
 Wellout renders typed, sandboxed HTML templates on the server. A browser receives HTML, CSS and the props of explicitly declared islands, and nothing else. A host application supplies view types, data sources, helpers, islands and HTTP transport. HaxePress is the first host; its integration plan lives in `hxwell-blog/docs/TEMPLATE-LANGUAGE.md`.
 
-Implementation status: the parser (§3, §4.1), the expression and template checkers (§4–§9), backend B (§13.3) with the runtime (§14), the client runtime (§9.4) and the view schema macro (§6.1) exist. Backend B reads fields reflectively; the generated accessors, backend A, backend C, the IR document format, the requirements analyzer (§7.2) and the node-visit and wall-time budgets are not started.
+Implementation status: the parser (§3, §4.1), the expression and template checkers (§4–§9), backend B (§13.3) with template images and the runtime (§14), the client runtime (§9.4) and the view schema macro (§6.1) exist. Backend B reads fields reflectively; the generated accessors, backend A, backend C, the IR document format, the requirements analyzer (§7.2) and the node-visit and wall-time budgets are not started.
 
 ## 1. Goals
 
@@ -517,6 +517,8 @@ The IR is Wellout's document format. Visual builders may store it directly. Ever
 
 - **A. Build-time macro.** Generates one Haxe function per template that writes into a `ByteWriter`. Static runs become `static final` pre-encoded `Bytes`. Fields are read with typed access, so the Haxe compiler checks templates against the real types.
 - **B. Op tree.** The IR is lowered into immutable operation objects: chunk, text, number, condition, repeat, component, slot, fragment and island. Field reads use the generated typed accessor classes, without reflection or boxing. The host caches compiled trees by template version and compiler version. The reference implementation (`wellout.render`) compiles checked templates directly, keeps values and loop counters in pooled frames, and allocates nothing per render in steady state; it reads fields reflectively until the accessors exist.
+
+  Hosts that start for each request, such as PHP, keep compiled trees as images (`TemplateImage`). An image holds only strings, numbers, booleans, null and arrays, so a host stores it as data, for example as a PHP array literal that opcache keeps in shared memory, never as code generated from a template. A `TemplateSet` with a `TemplateStore` restores a template from its image before it parses, checks and compiles it, and saves the image of each template it compiles. `PhpTemplateStore` is the store for PHP: one file per template under a folder named by the set version and the image format, written with `var_export` and renamed into place. Restoring rebuilds the same op tree and resolves helpers, filters, sources and components by name, so output, escaping, URL checks and budgets are those of the compiled tree. Images carry a format version; the host keys stored images by their sources and drops images it cannot restore.
 - **C. JavaScript.** Backend B compiled with the Haxe JavaScript target. A builder canvas renders with it and adds `data-well-node` attributes in preview output only, to map rendered elements back to editable nodes.
 
 ### 13.4 Conformance
@@ -536,6 +538,8 @@ A shared suite renders the same templates and fixtures through backends A, B and
 - Text is processed in blocks of 4,096 characters, so capacity is never over-reserved by more than one block.
 
 Filters and derived fields write directly into the writer as well.
+
+On PHP, whose strings index code points, the writer keeps a native string, appends in place and escapes with `htmlspecialchars` (`ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401`, the same table); JSON strings use `strtr` with the JSON writer's table. Invalid UTF-8 becomes U+FFFD. The test suite runs on PHP with the same expected output (`test-php.hxml`).
 
 ### 14.2 Writer pool
 
@@ -562,7 +566,7 @@ Large `SafeHtml` values and rarely changing shared regions should be cached as U
 1. Attribute order: Prettier formats `.well.html` stably at a print width of 100 (checked on the test fixtures), but it keeps the author's attribute order, so placing control directives first needs a lint rule.
 2. Scoped slots in version 1 or later.
 3. Budget defaults after profiling real templates.
-4. Backend B performance on the PHP target.
+4. Backend B performance on the PHP target. Images and the native writer remove compilation and quadratic encoding from each request; restoring an image still builds its op tree per request.
 5. Whether islands from untrusted templates may be any ES module or must use a constrained runtime.
 6. Name of the hxwell adapter package.
 

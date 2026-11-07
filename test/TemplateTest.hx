@@ -1,3 +1,4 @@
+import haxe.Json;
 import wellout.ByteWriter;
 import wellout.Result;
 import wellout.check.CheckedTemplate.AssetKind;
@@ -8,7 +9,15 @@ import wellout.render.CompiledTemplate;
 import wellout.render.RenderHost;
 import wellout.render.Renderer;
 import wellout.render.Runtime;
+import wellout.render.TemplateImage;
 import wellout.render.TemplateSet;
+import wellout.render.TemplateStore;
+#if php
+import php.Global;
+import php.Lib;
+import php.Syntax;
+import wellout.render.PhpTemplateStore;
+#end
 import wellout.syntax.Diagnostic;
 #if jvm
 import haxe.Int64;
@@ -62,6 +71,21 @@ class TestHost implements RenderHost {
     }
 }
 
+/** Keeps template images in memory, as a host keeps them in files. */
+class MemoryStore implements TemplateStore {
+    public final images:Map<String, Dynamic> = [];
+
+    public function new() {}
+
+    public function load(name:String):Null<Dynamic> {
+        return images.get(name);
+    }
+
+    public function save(name:String, image:Array<Dynamic>):Void {
+        images.set(name, image);
+    }
+}
+
 class TemplateTest {
     static var check:(Bool, String) -> Void;
     static var contract:HostContract;
@@ -91,7 +115,21 @@ class TemplateTest {
         #if jvm
         rendersPagesWithoutAllocating();
         #end
+        #if php
+        removeStores();
+        #end
     }
+
+    #if php
+    static function removeStores():Void {
+        Syntax.code("$root = sys_get_temp_dir() . '/wellout-tests-' . getmypid();
+            if (is_dir($root)) {
+                $files = new \\RecursiveIteratorIterator(new \\RecursiveDirectoryIterator($root, \\FilesystemIterator::SKIP_DOTS), \\RecursiveIteratorIterator::CHILD_FIRST);
+                foreach ($files as $file) { $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname()); }
+                rmdir($root);
+            }");
+    }
+    #end
 
     static function buildContract():HostContract {
         var contract = new HostContract();
@@ -145,12 +183,77 @@ class TemplateTest {
         };
     }
 
-    static function set(templates:Map<String, String>):TemplateSet {
+    static function set(templates:Map<String, String>, ?store:TemplateStore):TemplateSet {
         var library = new ComponentLibrary(contract);
         for (name => source in templates) {
             library.add(name, source);
         }
-        return new TemplateSet(contract, runtime, library);
+        return new TemplateSet(contract, runtime, library, store);
+    }
+
+    /**
+        Compiles `name` into a store, then restores it in a set whose sources
+        cannot be parsed, so every template it renders comes from an image.
+    **/
+    static function restored(templates:Map<String, String>, name:String):Null<CompiledTemplate> {
+        var store = newStore();
+        if (set(templates, store).template(name).value == null) {
+            return null;
+        }
+        for (template in templates.keys()) {
+            var image = store.load(template);
+            if (image == null) {
+                continue;
+            }
+            check(plainData(image), '${template} image holds only plain data');
+            var again = TemplateImage.encode(TemplateImage.decode(image, set(templates)));
+            check(Json.stringify(again) == Json.stringify(haxeValue(image)),
+                '${template} image encodes the same after decoding');
+        }
+        var unparsable = [for (template in templates.keys()) template => "<p {{"];
+        return set(unparsable, store).template(name).value;
+    }
+
+    static var stores = 0;
+
+    /** On PHP, images are kept as a PHP host keeps them: one PHP file per template. **/
+    static function newStore():TemplateStore {
+        #if php
+        var root:String = Syntax.code("sys_get_temp_dir() . '/wellout-tests-' . getmypid()");
+        return new PhpTemplateStore(root, 'set ${stores++}');
+        #else
+        return new MemoryStore();
+        #end
+    }
+
+    /** `value` with PHP native arrays, as a PHP host loads images, read as Haxe arrays. **/
+    static function haxeValue(value:Dynamic):Dynamic {
+        #if php
+        if (Global.is_array(value)) {
+            return [for (item in Lib.toHaxeArray(value)) haxeValue(item)];
+        }
+        #end
+        return value;
+    }
+
+    static function plainData(value:Dynamic):Bool {
+        if (value == null
+            || Std.isOfType(value, String)
+            || Std.isOfType(value, Float)
+            || Std.isOfType(value, Bool)) {
+            return true;
+        }
+        value = haxeValue(value);
+        if (!Std.isOfType(value, Array)) {
+            return false;
+        }
+        var items:Array<Dynamic> = cast value;
+        for (item in items) {
+            if (!plainData(item)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     static function compiled(templates:Map<String, String>, name:String):Null<CompiledTemplate> {
@@ -170,6 +273,21 @@ class TemplateTest {
         if (template == null) {
             return "";
         }
+        var output = renderCompiled(template, props, fragment);
+        // Every rendered template also renders from its stored images, byte for byte the same.
+        var calls = sourceCalls;
+        var image = restored(templates, name);
+        check(image != null, '${name} restores from its stored images');
+        if (image != null) {
+            var again = renderCompiled(image, props, fragment);
+            check(again == output, '${name} from images: expected\n  ${output}\ngot\n  ${again}');
+        }
+        sourceCalls = calls;
+        return output;
+    }
+
+    static function renderCompiled(template:CompiledTemplate, props:Dynamic,
+            fragment:Null<String>):String {
         var writer = new ByteWriter(256);
         var found = Renderer.render(template, props, host, writer, {fragment: fragment});
         return found ? writer.toString() : "<missing>";
@@ -338,7 +456,8 @@ class TemplateTest {
             '<props tags="List<String>" />\n<well:template id="row" :if="tags"><li :for="tag in tags">{{ tag }}</li></well:template>'
         ];
         expect(templates, "Page", {tags: ["a", "b"]},
-            '<template id="row"><li>a</li><li>b</li></template>', "<well:template> writes an HTML <template>");
+            '<template id="row"><li>a</li><li>b</li></template>',
+            "<well:template> writes an HTML <template>");
     }
 
     static function rendersComponentsAndSlots():Void {

@@ -22,9 +22,17 @@ Status: early development. The language is specified in [docs/SPEC.md](docs/SPEC
 - `wellout.check.ExpressionChecker`: infers expression types against a host contract of view types, helpers, filters and implicit roots, and resolves every name, field, helper and filter for the backends. Paths tested by a condition are non-null inside it, null passes through filters, and unknown names and fields come with "did you mean" hints.
 - `wellout.check.TemplateChecker` and `ComponentLibrary`: check whole templates against the contract and a component lookup chain: declarations, sources, directive chains, attribute contexts, component props and slots, `:attrs`, `<well:head>`, islands, assets and fragments. Unused props and sources are warnings.
 - `wellout.render`: backend B. `TemplateSet` checks and compiles templates once; `Renderer.render` writes a page, or one fragment, into a `ByteWriter`. URLs are checked by scheme, post forms get CSRF fields, head content and assets are collected where the layout places them. A 24-card page with a layout, loops and filters renders with 0 bytes allocated in steady state.
+- `wellout.render.TemplateImage` and `TemplateStore`: compiled templates as plain data that a set keeps between processes, restored without parsing, checking or compiling again.
+- `wellout.render.PhpTemplateStore`: the template cache for PHP, which starts an application for each request. Like compiled Blade views, each template is kept as a PHP file, but the file returns its image as a `var_export` array, data only, which opcache keeps in shared memory; output is still escaped by the renderer. Give each set its own version, such as a build or theme identifier:
+
+  ```haxe
+  var set = new TemplateSet(contract, runtime, library,
+      new PhpTemplateStore("/srv/app/storage/cache/views", "theme:fieldnotes:2.16.0"));
+  ```
+
 - `wellout.macro.ViewSchema`: builds view types from Haxe typedefs.
 - `client/wellout.js`: fragment swaps, island loading and confirmations (2.1 KB gzip).
-- A JVM test suite, including checks that steady-state rendering allocates 0 bytes.
+- A test suite for the JVM and PHP, including checks that steady-state rendering allocates 0 bytes and that every template renders the same from its stored image.
 
 ## Layout
 
@@ -36,10 +44,11 @@ Framework integration lives outside this package. The first host is HaxePress (`
 
 ## Development
 
-The library targets Haxe 4.3.7 and is tested on the JVM:
+The library targets Haxe 4.3.7 and is tested on the JVM and PHP:
 
 ```
 haxe test.hxml && java -jar bin/test.jar
+haxe test-php.hxml && php bin/php/index.php
 ```
 
 To use a local checkout from another project's local haxelib repository:
