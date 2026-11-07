@@ -305,6 +305,8 @@ class TemplateCompiler {
                     }
                 case Print(value):
                     builder.op(new PrintOp(expression(value, scope)));
+                case PrintHtml(value):
+                    builder.op(new PrintOp(expression(value, scope), true));
             }
         }
     }
@@ -445,7 +447,7 @@ class TemplateCompiler {
 
     static function isStatic(parts:Array<CheckedPart>):Bool {
         for (part in parts) {
-            if (part.match(Print(_))) {
+            if (part.match(Print(_) | PrintHtml(_))) {
                 return false;
             }
         }
@@ -475,7 +477,7 @@ class TemplateCompiler {
             switch part {
                 case Literal(text):
                     builder.literal(escapeAttribute(text));
-                case Print(value):
+                case Print(value) | PrintHtml(value):
                     builder.op(new PrintOp(expression(value, scope)));
             }
         }
@@ -501,7 +503,7 @@ class TemplateCompiler {
                         switch part {
                             case Literal(text):
                                 new UrlPart(escapeAttribute(text), null);
-                            case Print(value):
+                            case Print(value) | PrintHtml(value):
                                 new UrlPart(null, expression(value, scope));
                         }
                 ];
@@ -534,7 +536,7 @@ class TemplateCompiler {
                     switch part {
                         case Literal(text):
                             builder.literal(escapeAttribute(text));
-                        case Print(value):
+                        case Print(value) | PrintHtml(value):
                             builder.op(new PrintOp(expression(value, scope)));
                     }
                 }
@@ -640,7 +642,7 @@ class TemplateCompiler {
                 case Literal(text):
                     literals.push(StringTools.htmlUnescape(text));
                     values.push(null);
-                case Print(value):
+                case Print(value) | PrintHtml(value):
                     literals.push(null);
                     values.push(expression(value, scope));
             }

@@ -90,7 +90,12 @@ enum CheckedNode {
 
 enum CheckedPart {
     Literal(text:String);
+
+    /** A value written as escaped text, SafeHtml included. **/
     Print(value:TypedExpr);
+
+    /** A SafeHtml value written as HTML (`{!! … !!}`). **/
+    PrintHtml(value:TypedExpr);
 }
 
 enum AssetKind {

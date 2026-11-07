@@ -366,6 +366,15 @@ class Parser {
         var literalStart = start;
         var offset = start;
         while (offset < end) {
+            if (isRawStart(offset, end)) {
+                error("raw-in-attribute",
+                    "{!! !!} writes HTML and cannot appear in an attribute value", offset,
+                    "Use {{ }}, which escapes the value");
+                var raw = scanRawInterpolation(offset, end);
+                offset = raw.next;
+                literalStart = offset;
+                continue;
+            }
             if (code(offset) == "{".code && offset + 1 < end && code(offset + 1) == "{".code) {
                 if (offset > literalStart) {
                     parts.push(Literal(source.substring(literalStart, offset)));
@@ -392,6 +401,16 @@ class Parser {
             if (index > start && isMarkupStart(index)) {
                 break;
             }
+            if (!verbatim && isRawStart(index, length)) {
+                if (index > literalStart) {
+                    parts.push(Literal(source.substring(literalStart, index)));
+                }
+                var raw = scanRawInterpolation(index, length);
+                parts.push(raw.part);
+                index = raw.next;
+                literalStart = index;
+                continue;
+            }
             if (!verbatim
                 && code(index) == "{".code
                 && index + 1 < length
@@ -411,6 +430,58 @@ class Parser {
             parts.push(Literal(source.substring(literalStart, index)));
         }
         return new TextNode(parts, position(start));
+    }
+
+    function isRawStart(offset:Int, end:Int):Bool {
+        return offset + 2 < end
+            && code(offset) == "{".code
+            && code(offset + 1) == "!".code
+            && code(offset + 2) == "!".code;
+    }
+
+    /** Reads `{!! … !!}` from `start`; quotes inside the expression may contain `!!}`. **/
+    function scanRawInterpolation(start:Int, end:Int):{part:TextPart, next:Int} {
+        var expressionStart = start + 3;
+        var offset = expressionStart;
+        var quote = 0;
+        while (offset < end) {
+            var character = code(offset);
+            if (quote != 0) {
+                if (character == "\\".code) {
+                    offset += 2;
+                    continue;
+                }
+                if (character == quote) {
+                    quote = 0;
+                }
+                offset++;
+                continue;
+            }
+            if (character == "'".code || character == '"'.code) {
+                quote = character;
+                offset++;
+                continue;
+            }
+            if (character == "!".code
+                && offset + 2 < end
+                && code(offset + 1) == "!".code
+                && code(offset + 2) == "}".code) {
+                var expression = interpolationPart(start, expressionStart, offset);
+                var part = switch expression {
+                    case Interpolation(text, at): RawInterpolation(text, at);
+                    default: expression;
+                }
+                return {part: part, next: offset + 3};
+            }
+            offset++;
+        }
+        error("unterminated-interpolation", "The raw interpolation is not closed with !!}", start);
+        var unclosed = interpolationPart(start, expressionStart, end);
+        var part = switch unclosed {
+            case Interpolation(text, at): RawInterpolation(text, at);
+            default: unclosed;
+        }
+        return {part: part, next: end};
     }
 
     /** Reads `{{ … }}` from `start`; quotes inside the expression may contain `}}`. **/

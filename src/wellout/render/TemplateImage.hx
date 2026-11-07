@@ -33,7 +33,7 @@ class TemplateImageError extends Exception {}
 @:access(wellout.render)
 class TemplateImage {
     /** The image format; images of another format are not restored. **/
-    public static inline final VERSION = 1;
+    public static inline final VERSION = 2;
 
     public static function encode(template:CompiledTemplate):Array<Dynamic> {
         return [
@@ -121,7 +121,7 @@ class TemplateImage {
         }
         if (Std.isOfType(value, PrintOp)) {
             var print:PrintOp = cast value;
-            return [OpTag.PRINT, eval(print.value)];
+            return [OpTag.PRINT, eval(print.value), print.raw];
         }
         if (Std.isOfType(value, BranchOp)) {
             var branch:BranchOp = cast value;
@@ -525,7 +525,8 @@ private class ImageReader {
             case OpTag.SEQUENCE:
                 new SequenceOp([for (item in array(list(value, 2)[1])) op(item)]);
             case OpTag.PRINT:
-                new PrintOp(eval(list(value, 2)[1]));
+                var parts = list(value, 3);
+                new PrintOp(eval(parts[1]), bool(parts[2]));
             case OpTag.BRANCH:
                 var parts = list(value, 4);
                 var conditions = [for (condition in array(parts[1])) eval(condition)];

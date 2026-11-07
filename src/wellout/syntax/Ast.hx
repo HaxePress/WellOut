@@ -92,7 +92,7 @@ class TextNode {
                     if (StringTools.trim(text) != "") {
                         return false;
                     }
-                case Interpolation(_, _):
+                case Interpolation(_, _) | RawInterpolation(_, _):
                     return false;
             }
         }
@@ -102,7 +102,12 @@ class TextNode {
 
 enum TextPart {
     Literal(text:String);
+
+    /** `{{ … }}`: the value is always escaped. **/
     Interpolation(source:String, position:Position);
+
+    /** `{!! … !!}`: a SafeHtml value written as HTML. **/
+    RawInterpolation(source:String, position:Position);
 }
 
 class Attribute {

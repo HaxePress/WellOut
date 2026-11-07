@@ -347,9 +347,36 @@ class TemplateTest {
         ];
         expect(filters, "Page", {post: post("A long title here", null)},
             '<p>A long ti…||NONE</p>', "filters write and skip null");
-        var safe = ["Page" => '<props body="SafeHtml" /><div>{{ body }}</div>'];
-        expect(safe, "Page", {body: "<b>bold</b>"}, '<div><b>bold</b></div>',
-            "SafeHtml is written unescaped");
+        var escapedHtml = ["Page" => '<props body="SafeHtml" /><div>{{ body }}</div>'];
+        expect(escapedHtml, "Page", {body: "<b>bold</b>"}, '<div>&lt;b&gt;bold&lt;/b&gt;</div>',
+            "{{ }} escapes SafeHtml as well");
+        var escapedWarnings = diagnosticsOf(escapedHtml,
+            "Page")
+            .filter(diagnostic -> diagnostic.code == "escaped-html" && !diagnostic.isError());
+        check(escapedWarnings.length == 1, "{{ }} with SafeHtml warns that the HTML is escaped");
+        var rawHtml = ["Page" => '<props body="SafeHtml" /><div>{!! body !!}</div>'];
+        expect(rawHtml, "Page", {body: "<b>bold</b>"}, '<div><b>bold</b></div>',
+            "{!! !!} writes SafeHtml as HTML");
+        var optionalHtml = ["Page" => '<props body="SafeHtml?" /><div>{!! body !!}</div>'];
+        expect(optionalHtml, "Page", {body: null}, '<div></div>',
+            "{!! !!} writes nothing for null");
+        var rawText = ["Page" => '<props title="String" /><div>{!! title !!}</div>'];
+        check(diagnosticsOf(rawText,
+            "Page").filter(diagnostic -> diagnostic.code == "raw-output-type"
+                && diagnostic.isError())
+            .length == 1,
+            "{!! !!} rejects text that is not SafeHtml");
+        var rawAttribute = ["Page" => '<props body="SafeHtml" /><p title="{!! body !!}">x</p>'];
+        check(diagnosticsOf(rawAttribute,
+            "Page").filter(diagnostic -> diagnostic.code == "raw-in-attribute"
+                && diagnostic.isError())
+            .length == 1,
+            "{!! !!} is rejected in an attribute value");
+        var quotedClose = ["Page" => '<props body="SafeHtml" /><div>{!! body | default(\'!!}\') !!}</div>'];
+        check(diagnosticsOf(quotedClose,
+            "Page").filter(diagnostic ->
+                diagnostic.code == "unterminated-interpolation").length == 0,
+            "a quoted !!} does not end raw output");
     }
 
     static function rendersAttributes():Void {

@@ -32,10 +32,10 @@ Non-goals: general-purpose logic in templates, client-side page routing, executa
               └──────────────────────► pooled UTF-8 ByteWriter ◄──────────────────┘
 ```
 
-| Source                                | Trust     | Backend              | Compiled at        |
-| ------------------------------------- | --------- | -------------------- | ------------------ |
-| Shipped with the application          | Trusted   | A                    | Application build  |
-| Shipped with a compiled plugin        | Trusted   | A                    | Plugin build       |
+| Source                                 | Trust     | Backend              | Compiled at        |
+| -------------------------------------- | --------- | -------------------- | ------------------ |
+| Shipped with the application           | Trusted   | A                    | Application build  |
+| Shipped with a compiled plugin         | Trusted   | A                    | Plugin build       |
 | Installed at runtime or built visually | Untrusted | B (C in the builder) | Install or publish |
 
 All backends produce byte-identical output for the conformance suite (§13.4).
@@ -72,9 +72,10 @@ The host provides:
 
 ### 3.3 Interpolation
 
-- `{{ expression }}` is allowed in text and inside attribute values.
+- `{{ expression }}` is allowed in text and inside attribute values. Its value is always escaped for its context (§8.1), `SafeHtml` included.
+- `{!! expression !!}` writes a `SafeHtml` value as HTML (§8.3). It is allowed only in element text, and only for `SafeHtml` or `SafeHtml?` values.
 - Inside an element with `:verbatim`, text is output as written.
-- A literal `{{` is written as `{{ '{{' }}`.
+- A literal `{{` is written as `{{ '{{' }}`, and a literal `{!!` as `{{ '{!!' }}`.
 
 ### 3.4 Directives, bindings and reserved attributes
 
@@ -356,7 +357,19 @@ Site-relative URLs pass through the host's link mapper before they are written. 
 
 ### 8.3 SafeHtml
 
-`SafeHtml` values come only from trusted host code, such as a content renderer or an HTML sanitizer. Templates cannot create `SafeHtml`, and there is no `raw` filter. Hosts should cache large `SafeHtml` values as UTF-8 bytes (§14.3).
+`SafeHtml` values come only from trusted host code, such as a content renderer or an HTML sanitizer. Templates cannot create `SafeHtml`, and there is no `raw` filter.
+
+Every output is escaped by default. HTML is written only where a template asks for it with `{!! … !!}`, and only for a `SafeHtml` value:
+
+| Template               | Value      | Output                                        |
+| ---------------------- | ---------- | --------------------------------------------- |
+| `{{ value }}`          | any        | Escaped text                                  |
+| `{{ html }}`           | `SafeHtml` | Escaped text, with the warning `escaped-html` |
+| `{!! html !!}`         | `SafeHtml` | HTML, as the host produced it                 |
+| `{!! value !!}`        | other      | Error `raw-output-type`                       |
+| `title="{!! html !!}"` | any        | Error `raw-in-attribute`                      |
+
+So a template cannot turn text into markup: raw output needs both the marker in the template and a value the host vouched for. Hosts should cache large `SafeHtml` values as UTF-8 bytes (§14.3).
 
 ### 8.4 Element policy for untrusted templates
 
@@ -519,6 +532,7 @@ The IR is Wellout's document format. Visual builders may store it directly. Ever
 - **B. Op tree.** The IR is lowered into immutable operation objects: chunk, text, number, condition, repeat, component, slot, fragment and island. Field reads use the generated typed accessor classes, without reflection or boxing. The host caches compiled trees by template version and compiler version. The reference implementation (`wellout.render`) compiles checked templates directly, keeps values and loop counters in pooled frames, and allocates nothing per render in steady state; it reads fields reflectively until the accessors exist.
 
   Hosts that start for each request, such as PHP, keep compiled trees as images (`TemplateImage`). An image holds only strings, numbers, booleans, null and arrays, so a host stores it as data, for example as a PHP array literal that opcache keeps in shared memory, never as code generated from a template. A `TemplateSet` with a `TemplateStore` restores a template from its image before it parses, checks and compiles it, and saves the image of each template it compiles. `PhpTemplateStore` is the store for PHP: one file per template under a folder named by the set version and the image format, written with `var_export` and renamed into place. Restoring rebuilds the same op tree and resolves helpers, filters, sources and components by name, so output, escaping, URL checks and budgets are those of the compiled tree. Images carry a format version; the host keys stored images by their sources and drops images it cannot restore.
+
 - **C. JavaScript.** Backend B compiled with the Haxe JavaScript target. A builder canvas renders with it and adds `data-well-node` attributes in preview output only, to map rendered elements back to editable nodes.
 
 ### 13.4 Conformance
@@ -555,11 +569,11 @@ Large `SafeHtml` values and rarely changing shared regions should be cached as U
 
 ### 14.4 Targets
 
-| Measure                                   | Target                                   |
-| ----------------------------------------- | ---------------------------------------- |
-| Reference list (24 cards), backend A      | ≤ 11 µs and 0 bytes allocated per render |
-| Reference list, backend B                 | ≤ 14 µs and 0 bytes allocated per render |
-| `ByteWriter` steady state (test suite)    | 0 bytes allocated (measured: 0 in 10,000 renders) |
+| Measure                                | Target                                            |
+| -------------------------------------- | ------------------------------------------------- |
+| Reference list (24 cards), backend A   | ≤ 11 µs and 0 bytes allocated per render          |
+| Reference list, backend B              | ≤ 14 µs and 0 bytes allocated per render          |
+| `ByteWriter` steady state (test suite) | 0 bytes allocated (measured: 0 in 10,000 renders) |
 
 ## 15. Open questions
 
@@ -656,17 +670,17 @@ From this template and `PostCard`, the compiler derives:
 
 ## Appendix B: Comparison
 
-| Concern            | mtt (`haxe.Template`)                                    | Laravel Blade                                 | Wellout                                         |
-| ------------------ | -------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------- |
-| Default escaping   | None                                                     | `htmlspecialchars` for every context          | By output context (§8.1)                        |
-| Raw output         | Always                                                   | `{!! !!}` for any value                       | Only `SafeHtml` produced by trusted code        |
-| Sandbox            | Reflection and property getters                          | None: templates are PHP                       | No code, I/O or reflection                      |
-| Data contract      | None                                                     | Untyped `@props`; implicit shared data        | Typed props and view records                    |
-| Data loading       | Host prepares everything                                 | Templates may lazy-load relations             | Declared, bounded sources; analyzed projections |
-| HTML awareness     | None                                                     | None                                          | Strict parse, tag and attribute policy          |
-| Composition        | Macros only                                              | Inheritance plus components                   | Components, slots, layouts as components        |
-| Dynamic behaviour  | None                                                     | `@fragment`; Livewire sends state snapshots   | Fragments, actions, typed islands               |
-| JVM behaviour      | `::if::` on strings throws; anonymous-object macros fail | Not applicable                                | Backends A and B, conformance-tested            |
+| Concern           | mtt (`haxe.Template`)                                    | Laravel Blade                               | Wellout                                          |
+| ----------------- | -------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------ |
+| Default escaping  | None                                                     | `htmlspecialchars` for every context        | By output context (§8.1)                         |
+| Raw output        | Always                                                   | `{!! !!}` for any value                     | `{!! !!}`, only for `SafeHtml` from trusted code |
+| Sandbox           | Reflection and property getters                          | None: templates are PHP                     | No code, I/O or reflection                       |
+| Data contract     | None                                                     | Untyped `@props`; implicit shared data      | Typed props and view records                     |
+| Data loading      | Host prepares everything                                 | Templates may lazy-load relations           | Declared, bounded sources; analyzed projections  |
+| HTML awareness    | None                                                     | None                                        | Strict parse, tag and attribute policy           |
+| Composition       | Macros only                                              | Inheritance plus components                 | Components, slots, layouts as components         |
+| Dynamic behaviour | None                                                     | `@fragment`; Livewire sends state snapshots | Fragments, actions, typed islands                |
+| JVM behaviour     | `::if::` on strings throws; anonymous-object macros fail | Not applicable                              | Backends A and B, conformance-tested             |
 
 ## Appendix C: Render benchmark
 

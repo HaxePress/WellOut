@@ -44,15 +44,28 @@ class SequenceOp extends Op {
     }
 }
 
-/** An interpolated value in text or inside a quoted attribute value. */
+/**
+    An interpolated value in text or inside a quoted attribute value. Every
+    value is escaped, SafeHtml included; only `raw` output (`{!! … !!}`, which
+    the checker allows for SafeHtml values in text) is written as HTML.
+**/
 class PrintOp extends Op {
     final value:Eval;
+    final raw:Bool;
 
-    public function new(value:Eval) {
+    public function new(value:Eval, raw:Bool = false) {
         this.value = value;
+        this.raw = raw;
     }
 
     public function render(context:RenderContext):Void {
+        if (!raw && value.kind == KSafeHtml) {
+            var html = Values.toText(value.value(context));
+            if (html != null) {
+                context.out.text(html);
+            }
+            return;
+        }
         value.write(context, context.out);
     }
 }

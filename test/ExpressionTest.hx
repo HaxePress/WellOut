@@ -392,7 +392,7 @@ class ExpressionTest {
         var visited = 0;
         for (part in parts) {
             switch part {
-                case Interpolation(source, position):
+                case Interpolation(source, position) | RawInterpolation(source, position):
                     visited++;
                     collect(ExpressionParser.parse(source, position).diagnostics, problems);
                 case Literal(_):

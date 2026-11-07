@@ -426,12 +426,34 @@ class TemplateChecker {
                     }
                     if (context == null) {
                         requirePrintable(value, true);
+                        if (Types.nonNull(value.type) == TSafeHtml) {
+                            warn("escaped-html", "This HTML value is written as escaped text",
+                                value.position, "Write it with {!! !!} to render it as HTML");
+                        }
                     } else if (context == Style) {
                         requireCss(value);
                     } else {
                         requirePrintable(value, false);
                     }
                     checked.push(Print(value));
+                case RawInterpolation(source, position):
+                    // The parser reports raw output in attribute values; only element text gets here.
+                    var parsed = ExpressionParser.parse(source, position);
+                    report(parsed.diagnostics);
+                    if (parsed.value == null || context != null) {
+                        continue;
+                    }
+                    var value = expression(parsed.value, scope);
+                    if (value == null) {
+                        continue;
+                    }
+                    if (Types.nonNull(value.type) != TSafeHtml) {
+                        error("raw-output-type",
+                            '{!! !!} writes only SafeHtml, not ${Types.print(value.type)}',
+                            value.position, "Write text with {{ }}, which escapes it");
+                        continue;
+                    }
+                    checked.push(PrintHtml(value));
             }
         }
         return checked;
@@ -552,6 +574,8 @@ class TemplateChecker {
                                 Literal(value);
                             case Interpolation(source, _):
                                 Literal('{{${source}}}');
+                            case RawInterpolation(source, _):
+                                Literal('{!!${source}!!}');
                         }
                 ]);
             default:

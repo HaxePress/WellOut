@@ -81,6 +81,8 @@ class AstPrinter {
                     output.add(spaces.replace(text, " "));
                 case Interpolation(source, _):
                     output.add('{${source}}');
+                case RawInterpolation(source, _):
+                    output.add('{!!${source}!!}');
             }
         }
         return output.toString();
