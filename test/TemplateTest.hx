@@ -5,6 +5,7 @@ import wellout.check.CheckedTemplate.AssetKind;
 import wellout.check.ComponentLibrary;
 import wellout.check.HostContract;
 import wellout.check.Types;
+import wellout.render.BuiltinFilters;
 import wellout.render.CompiledTemplate;
 import wellout.render.RenderHost;
 import wellout.render.Renderer;
@@ -23,6 +24,8 @@ import wellout.syntax.Diagnostic;
 import haxe.Int64;
 import JvmAllocation.AllocationCounter;
 import JvmAllocation.ManagementFactory;
+import sys.thread.Deque;
+import sys.thread.Thread;
 #end
 
 using StringTools;
@@ -113,8 +116,10 @@ class TemplateTest {
         rendersForms();
         loadsSources();
         reportsTemplateProblems();
+        validatesStyleValues();
         #if jvm
         rendersPagesWithoutAllocating();
+        compilesAndRendersConcurrently();
         #end
         #if php
         removeStores();
@@ -666,6 +671,119 @@ class TemplateTest {
         Sys.println('page render: ${writer.length} bytes, ${perRender} bytes allocated per render');
         check(perRender < 64,
             'a steady-state page render allocates almost nothing (${perRender} bytes)');
+    }
+
+    /**
+        Request threads parse, check, compile and render templates at the
+        same time. Each thread alternates between templates and values that
+        give different results, so a match one thread's EReg state leaked
+        into another's would change the output.
+    **/
+    static function compilesAndRendersConcurrently():Void {
+        var loop = '<article :for="post in items"><h2>{{ post.title }}</h2></article>';
+        var styled = '<props items="List<Post>" accent="String" width="String" />\n<section style="--accent: {{ accent | color }}; --width: {{ width | length }}">\n  ${loop}\n</section>\n';
+        var invalidLoop = styled.replace("post in items", "1 in items");
+        var templates = [["Page" => styled], ["Page" => invalidLoop]];
+        var items = [for (index in 0...3) post('Post ${index}')];
+        var values:Array<Dynamic> = [
+            {items: items, accent: "#2457a6", width: "1.5rem"},
+            {items: items, accent: "red;background:url(x)", width: "12px; color: red"}
+        ];
+        var expected = [for (variant in 0...4) concurrentResult(templates, values, variant)];
+        var threads = 8;
+        var rounds = 300;
+        var finished = new Deque<String>();
+        for (thread in 0...threads) {
+            Thread.create(() -> {
+                var failure = "";
+                for (round in 0...rounds) {
+                    var variant = (thread + round) % 4;
+                    var result = try {
+                        concurrentResult(templates, values, variant);
+                    } catch (error:Dynamic) {
+                        'error ${Std.string(error)}';
+                    }
+                    if (failure == "" && result != expected[variant]) {
+                        failure = 'variant ${variant}: ${result}';
+                    }
+                }
+                finished.add(failure);
+            });
+        }
+        var results = [for (thread in 0...threads) finished.pop(true)];
+        var failures = results.filter(failure -> failure != "");
+        var summary = failures.join("; ");
+        check(failures.length == 0,
+            'concurrent compiles and renders agree with a single thread (${summary})');
+    }
+
+    /** The diagnostics and output of one template and value variant. **/
+    static function concurrentResult(templates:Array<Map<String, String>>, values:Array<Dynamic>,
+            variant:Int):String {
+        var result = set(templates[variant % 2]).template("Page");
+        var codes = [for (diagnostic in result.diagnostics) diagnostic.code].join(",");
+        if (result.value == null) {
+            return 'diagnostics ${codes}';
+        }
+        var writer = new ByteWriter(256);
+        Renderer.render(result.value, values[Std.int(variant / 2)], host, writer);
+        return 'diagnostics ${codes}: ${writer.toString()}';
+    }
+    #end
+
+    static function validatesStyleValues():Void {
+        for (color in ["#abc", "#ABCDEF", "#2457a6"]) {
+            check(BuiltinFilters.validColor(color) == color, '${color} is a color');
+        }
+        var invalidColors = ["", "#", "#ab", "#abcd", "#abcdeg", "abc", "##abc", "#abc\n", " #abc", "#ａｂｃ"];
+        for (color in invalidColors) {
+            check(BuiltinFilters.validColor(color) == null,
+                '${Json.stringify(color)} is not a color');
+        }
+        var lengths = [
+            "0", "12", "-3", "1.5", ".5", "-.5em", "12px", "1.5rem", "50%", "10vmin", "2vmax",
+            "3pt", "1ch"
+        ];
+        for (length in lengths) {
+            check(BuiltinFilters.validLength(length) == length, '${length} is a length');
+        }
+        var invalidLengths = [
+            "", "-", ".", "1.", "1.px", "px", "12 px", "12PX", "1e3", "12px;", "12px\n", "--1",
+            "+1", "1..2", "1.2.3", "12pxx", "٣px"
+        ];
+        for (length in invalidLengths) {
+            check(BuiltinFilters.validLength(length) == null,
+                '${Json.stringify(length)} is not a length');
+        }
+        #if jvm
+        var counter:AllocationCounter = cast ManagementFactory.getThreadMXBean();
+        var valid = 0;
+        for (round in 0...20000) {
+            valid += styleValues();
+        }
+        var calls = 20000;
+        var before = counter.getCurrentThreadAllocatedBytes();
+        for (round in 0...calls) {
+            valid += styleValues();
+        }
+        var allocated = Int64.toInt(counter.getCurrentThreadAllocatedBytes() - before);
+        check(valid == 5 * (20000 + calls) && allocated < calls,
+            'the color and length filters allocate nothing (${allocated} bytes in ${calls} rounds)');
+        #end
+    }
+
+    #if jvm
+    /** How many of seven style values are valid (five), without allocating. **/
+    static function styleValues():Int {
+        var valid = 0;
+        valid += BuiltinFilters.validColor("#2457a6") == null ? 0 : 1;
+        valid += BuiltinFilters.validColor("#abc") == null ? 0 : 1;
+        valid += BuiltinFilters.validColor("red") == null ? 0 : 1;
+        valid += BuiltinFilters.validLength("1.5rem") == null ? 0 : 1;
+        valid += BuiltinFilters.validLength("-.5em") == null ? 0 : 1;
+        valid += BuiltinFilters.validLength("12") == null ? 0 : 1;
+        valid += BuiltinFilters.validLength("12 px") == null ? 0 : 1;
+        return valid;
     }
     #end
 }

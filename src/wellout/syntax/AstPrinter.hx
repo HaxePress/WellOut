@@ -10,8 +10,6 @@ using StringTools;
     braces, and whitespace-only text is left out.
 **/
 class AstPrinter {
-    static final spaces = ~/\s+/g;
-
     public static function print(document:Document):String {
         var lines:Array<String> = [];
         for (declaration in document.props) {
@@ -75,6 +73,7 @@ class AstPrinter {
 
     static function partsText(parts:Array<TextPart>):String {
         var output = new StringBuf();
+        var spaces = ~/\s+/g;
         for (part in parts) {
             switch part {
                 case Literal(text):

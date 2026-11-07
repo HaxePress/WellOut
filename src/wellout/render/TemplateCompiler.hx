@@ -94,7 +94,6 @@ class CompileScope {
     component op holds its callee directly.
 **/
 class TemplateCompiler {
-    static final collapsible = ~/[ \t\r]*\n\s*/g;
     static final preserving:Map<String, Bool> = ["pre" => true, "textarea" => true];
     static final spoofed:Map<String, Bool> = ["put" => true, "patch" => true, "delete" => true];
 
@@ -103,6 +102,10 @@ class TemplateCompiler {
     final template:CompiledTemplate;
     final diagnostics:Array<Diagnostic>;
     final fragments:Array<String> = [];
+    // Per compiler: an EReg keeps its last match, so threads must not share one.
+    final collapsible = ~/[ \t\r]*\n\s*/g;
+    final leadingBreak = ~/^[ \t\r]*\n\s*/;
+    final trailingBreak = ~/\s*\n[ \t\r]*$/;
     var preserveDepth = 0;
     var headDepth = 0;
 
@@ -185,9 +188,6 @@ class TemplateCompiler {
         return trimmed;
     }
 
-    static final leadingBreak = ~/^[ \t\r]*\n\s*/;
-    static final trailingBreak = ~/\s*\n[ \t\r]*$/;
-
     static function isBreak(node:CheckedNode):Bool {
         return switch node {
             case Text([Literal(text)]): text.indexOf("\n") >= 0 && text.trim() == "";
@@ -195,7 +195,7 @@ class TemplateCompiler {
         }
     }
 
-    static function trimText(node:CheckedNode, leading:Bool):CheckedNode {
+    function trimText(node:CheckedNode, leading:Bool):CheckedNode {
         return switch node {
             case Text(parts) if (parts.length > 0):
                 var copy = parts.copy();

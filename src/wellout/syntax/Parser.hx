@@ -51,8 +51,10 @@ class Parser {
         ":attrs" => Attrs,
         ":verbatim" => Verbatim
     ];
-    static final loopPattern = ~/^\s*[A-Za-z_][A-Za-z0-9_]*\s+in\s+\S/;
-    static final eventPattern = ~/^on[a-z]/;
+
+    // Per parser: an EReg keeps its last match, so threads must not share one.
+    final loopPattern = ~/^\s*[A-Za-z_][A-Za-z0-9_]*\s+in\s+\S/;
+    final eventPattern = ~/^on[a-z]/;
 
     final source:String;
     final length:Int;

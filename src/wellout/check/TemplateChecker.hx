@@ -22,10 +22,12 @@ using StringTools;
     Checking continues after errors, so one run reports as much as it can.
 **/
 class TemplateChecker {
-    static final identifier = ~/^[A-Za-z_][A-Za-z0-9_]*$/;
-    static final fragmentName = ~/^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
-    static final slotName = ~/^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
-    static final assetPath = ~/^[A-Za-z0-9_][A-Za-z0-9_\/.-]*$/;
+    // Per checker: an EReg keeps its last match, so threads must not share one.
+    final identifier = ~/^[A-Za-z_][A-Za-z0-9_]*$/;
+    final fragmentName = ~/^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+    final slotName = ~/^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+    final assetPath = ~/^[A-Za-z0-9_][A-Za-z0-9_\/.-]*$/;
+
     static final fontSuffixes = [".woff2", ".woff", ".ttf", ".otf"];
     static final urlAttributes:Map<String, Bool> = [
         "href" => true,

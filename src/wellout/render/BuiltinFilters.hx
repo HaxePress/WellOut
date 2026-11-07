@@ -2,11 +2,14 @@ package wellout.render;
 
 import wellout.ByteWriter;
 
-/** The language's built-in filters (SPEC §4.5) with allocation-free writer forms where possible. */
+/**
+    The language's built-in filters (SPEC §4.5) with allocation-free writer
+    forms where possible. `color` and `length` read characters rather than
+    match an EReg: an EReg keeps its match state, so render threads cannot
+    share one, and a new EReg allocates a matcher on every call.
+**/
 class BuiltinFilters {
-    static final color = ~/^#[0-9a-fA-F]{6}$/;
-    static final shortColor = ~/^#[0-9a-fA-F]{3}$/;
-    static final cssLength = ~/^-?(?:\d+|\d*\.\d+)(?:px|rem|em|%|vh|vw|vmin|vmax|ch|ex|pt)?$/;
+    static final lengthUnits = ["px", "rem", "em", "%", "vh", "vw", "vmin", "vmax", "ch", "ex", "pt"];
 
     public static function install(runtime:Runtime):Void {
         runtime.addFilter("truncate", truncate, writeTruncated);
@@ -73,17 +76,68 @@ class BuiltinFilters {
         }
     }
 
+    /** `value` when it is a `#rgb` or `#rrggbb` color, else null. **/
     public static function validColor(value:Null<String>):Null<String> {
         if (value == null) {
             return null;
         }
-        return color.match(value) || shortColor.match(value) ? value : null;
+        var length = value.length;
+        if ((length != 4 && length != 7) || StringTools.fastCodeAt(value, 0) != "#".code) {
+            return null;
+        }
+        for (index in 1...length) {
+            if (!isHexDigit(StringTools.fastCodeAt(value, index))) {
+                return null;
+            }
+        }
+        return value;
     }
 
+    /** `value` when it is a number with an optional CSS unit, such as `-1.5rem` or `.5em`, else null. **/
     public static function validLength(value:Null<String>):Null<String> {
         if (value == null) {
             return null;
         }
-        return cssLength.match(value) ? value : null;
+        var length = value.length;
+        var start = length > 0 && StringTools.fastCodeAt(value, 0) == "-".code ? 1 : 0;
+        var integerEnd = digitsEnd(value, start, length);
+        var numberEnd = integerEnd;
+        if (integerEnd < length && StringTools.fastCodeAt(value, integerEnd) == ".".code) {
+            numberEnd = digitsEnd(value, integerEnd + 1, length);
+            if (numberEnd == integerEnd + 1) {
+                return null;
+            }
+        } else if (integerEnd == start) {
+            return null;
+        }
+        return numberEnd == length || hasUnit(value, length - numberEnd) ? value : null;
+    }
+
+    static function isHexDigit(code:Int):Bool {
+        return (code >= "0".code && code <= "9".code) || (code >= "a".code && code <= "f".code)
+            || (code >= "A".code && code <= "F".code);
+    }
+
+    /** The index after the ASCII digits that start at `start`. **/
+    static function digitsEnd(value:String, start:Int, length:Int):Int {
+        var index = start;
+        while (index < length) {
+            var code = StringTools.fastCodeAt(value, index);
+            if (code < "0".code || code > "9".code) {
+                break;
+            }
+            index++;
+        }
+        return index;
+    }
+
+    /** Whether the last `unitLength` characters of `value` are a CSS length unit. **/
+    static function hasUnit(value:String, unitLength:Int):Bool {
+        for (unit in lengthUnits) {
+            if (unit.length == unitLength && StringTools.endsWith(value, unit)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
