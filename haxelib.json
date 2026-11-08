@@ -1,6 +1,6 @@
 {
     "name": "wellout",
-    "url": "https://github.com/hxwell/wellout",
+    "url": "https://github.com/HaxePress/WellOut",
     "license": "MIT",
     "tags": ["hxwell", "template", "html"],
     "description": "Typed, sandboxed HTML templates that render to UTF-8 without allocating.",
